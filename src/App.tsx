@@ -4,7 +4,6 @@ import { PaintGrade, Project, Room, ItemInstance, SurfaceCategory, PaintSheen, C
 import { calculateQuantity, calculateItemCost, calculateProjectTotals, calculateRoomTotal } from './services/calculationEngine';
 import { db } from './services/db';
 import { parseRoomDescription, suggestColors } from './services/geminiService';
-import { DEFAULT_SETTINGS } from './constants';
 
 // --- Icons ---
 const Icon = ({ name, className }: { name: string, className?: string }) => {
@@ -150,7 +149,7 @@ const ClientSelectorModal = ({ clients, onSelect, onCreateNew, onCancel }: { cli
 );
 
 const SyncBanner = ({ handleName, onSync, onUnlink, state }: { handleName: string, onSync: () => void, onUnlink: () => void, state: string }) => (
-    <div className="bg-blue-50 border-b border-blue-200 p-3 flex items-center justify-between">
+    <div className="bg-blue-50 border-b border-blue-200 p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
         <div className="flex items-center gap-3">
              <div className="bg-blue-200 p-1.5 rounded-full text-blue-700"><Icon name="cloud" className="w-4 h-4" /></div>
              <div>
@@ -431,14 +430,8 @@ const SettingsMenu = ({ onNavigate }: { onNavigate: (page: string) => void }) =>
 const DataManagement = ({ onBack, onRefresh, onSyncChange, syncState }: { onBack: () => void, onRefresh: () => void, onSyncChange: () => void, syncState: 'none' | 'synced' | 'error' | 'pending' | 'disconnected' }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [linkedHandleName, setLinkedHandleName] = useState<string | null>(null);
-    const [isSupported, setIsSupported] = useState(true);
 
     useEffect(() => {
-        // Check if File System Access API is supported
-        if (!('showSaveFilePicker' in window)) {
-            setIsSupported(false);
-        }
-        
         db.sync.getHandle().then(h => {
             if (h) setLinkedHandleName(h.name);
         });
@@ -477,10 +470,6 @@ const DataManagement = ({ onBack, onRefresh, onSyncChange, syncState }: { onBack
 
     // New File (Write Mode)
     const handleCreateSyncFile = async () => {
-        if (!isSupported) {
-            alert("Your browser does not support saving directly to files. Please use Manual Backup.");
-            return;
-        }
         try {
             // @ts-ignore - Experimental API
             const handle = await window.showSaveFilePicker({
@@ -504,10 +493,6 @@ const DataManagement = ({ onBack, onRefresh, onSyncChange, syncState }: { onBack
 
     // Existing File (Read -> Write Mode)
     const handleLinkExistingFile = async () => {
-        if (!isSupported) {
-            alert("Your browser does not support opening local files directly. Please use Manual Restore.");
-            return;
-        }
         try {
              // @ts-ignore - Experimental API
              const [handle] = await window.showOpenFilePicker({
@@ -553,19 +538,13 @@ const DataManagement = ({ onBack, onRefresh, onSyncChange, syncState }: { onBack
                         </div>
                     </div>
                     
-                    {!isSupported && (
-                         <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
-                            Browser not supported. Please use Chrome, Edge or Opera for File System Sync.
-                         </div>
-                    )}
-
                     {linkedHandleName ? (
                         <div className="bg-green-50 border border-green-200 rounded p-3 mb-4 text-sm text-green-800 flex items-center gap-2">
                             <Icon name="check" className="w-4 h-4" />
                             Active: <strong>{linkedHandleName}</strong>
                         </div>
                     ) : (
-                        <div className={`bg-slate-50 border border-slate-200 rounded p-3 mb-4 text-sm text-slate-600 ${!isSupported ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="bg-slate-50 border border-slate-200 rounded p-3 mb-4 text-sm text-slate-600">
                              <p className="mb-2 font-bold">Select an option:</p>
                              <div className="flex flex-col gap-2">
                                 <button 
@@ -1190,40 +1169,29 @@ const App = () => {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
   const refresh = async () => {
-    try {
-        const [p, c, t, m, s, r, b, h] = await Promise.all([
-          db.projects.toArray(),
-          db.clients.toArray(),
-          db.templates.toArray(),
-          db.materials.toArray(),
-          db.settings.get(),
-          db.roomNames.toArray(),
-          db.branding.get(),
-          db.sync.getHandle().catch(() => undefined) // Safe handle retrieval in case store missing
-        ]);
-        setProjects(p.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        setClients(c.sort((a, b) => a.name.localeCompare(b.name)));
-        setTemplates(t);
-        setMaterials(m);
-        setSettings(s);
-        setRoomNames(r);
-        setBranding(b);
-        
-        setSyncHandle(h);
-        
-        // On startup, if handle exists but we haven't "connected", set to disconnected to prompt user
-        if (h && syncState === 'none') {
-            setSyncState('disconnected');
-        }
-    } catch (e) {
-        console.error("Failed to initialize app data", e);
-        // Fallback defaults to prevent UI hang
-        setSettings(DEFAULT_SETTINGS);
-        setBranding({ 
-            businessName: 'ProPaint', 
-            contactInfo: '', 
-            reviewBlurb: '' 
-        });
+    const [p, c, t, m, s, r, b, h] = await Promise.all([
+      db.projects.toArray(),
+      db.clients.toArray(),
+      db.templates.toArray(),
+      db.materials.toArray(),
+      db.settings.get(),
+      db.roomNames.toArray(),
+      db.branding.get(),
+      db.sync.getHandle()
+    ]);
+    setProjects(p.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    setClients(c.sort((a, b) => a.name.localeCompare(b.name)));
+    setTemplates(t);
+    setMaterials(m);
+    setSettings(s);
+    setRoomNames(r);
+    setBranding(b);
+    
+    setSyncHandle(h);
+    
+    // On startup, if handle exists but we haven't "connected", set to disconnected to prompt user
+    if (h && syncState === 'none') {
+        setSyncState('disconnected');
     }
   };
 
@@ -1321,7 +1289,7 @@ const App = () => {
       setSelectedRoom(null);
   };
 
-  if (!settings || !branding) return <div className="flex h-screen items-center justify-center text-slate-400 animate-pulse">Loading ProPaint...</div>;
+  if (!settings || !branding) return <div className="flex h-screen items-center justify-center text-slate-400">Loading ProPaint...</div>;
 
   if (selectedRoom && selectedProject) {
       return (
