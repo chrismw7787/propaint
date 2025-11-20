@@ -1,0 +1,8 @@
+{
+  "name": "ProPaint Estimator",
+  "description": "A professional, offline-capable paint estimating application for contractors. Features precise material calculations, labor estimation, and AI-assisted room setup.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
