@@ -23,7 +23,7 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
         camera: <g><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></g>,
         download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />,
         upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
-        database: <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />,
+        database: <g><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></g>,
         cloud: <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />,
         check: <polyline points="20 6 9 17 4 12" />,
         refresh: <path d="M23 4v6h-6M1 20v-6h6" />,
@@ -150,7 +150,7 @@ const ClientSelectorModal = ({ clients, onSelect, onCreateNew, onCancel }: { cli
 );
 
 const SyncBanner = ({ handleName, onSync, onUnlink, state }: { handleName: string, onSync: () => void, onUnlink: () => void, state: string }) => (
-    <div className="bg-blue-50 border-b border-blue-200 p-3 flex items-center justify-between">
+    <div className="bg-blue-50 border-b border-blue-200 p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
         <div className="flex items-center gap-3">
              <div className="bg-blue-200 p-1.5 rounded-full text-blue-700"><Icon name="cloud" className="w-4 h-4" /></div>
              <div>

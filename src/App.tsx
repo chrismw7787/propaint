@@ -4,6 +4,7 @@ import { PaintGrade, Project, Room, ItemInstance, SurfaceCategory, PaintSheen, C
 import { calculateQuantity, calculateItemCost, calculateProjectTotals, calculateRoomTotal } from './services/calculationEngine';
 import { db } from './services/db';
 import { parseRoomDescription, suggestColors } from './services/geminiService';
+import { DEFAULT_SETTINGS } from './constants';
 
 // --- Icons ---
 const Icon = ({ name, className }: { name: string, className?: string }) => {
@@ -22,7 +23,7 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
         camera: <g><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></g>,
         download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />,
         upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
-        database: <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />,
+        database: <g><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></g>,
         cloud: <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />,
         check: <polyline points="20 6 9 17 4 12" />,
         refresh: <path d="M23 4v6h-6M1 20v-6h6" />,
@@ -430,8 +431,14 @@ const SettingsMenu = ({ onNavigate }: { onNavigate: (page: string) => void }) =>
 const DataManagement = ({ onBack, onRefresh, onSyncChange, syncState }: { onBack: () => void, onRefresh: () => void, onSyncChange: () => void, syncState: 'none' | 'synced' | 'error' | 'pending' | 'disconnected' }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [linkedHandleName, setLinkedHandleName] = useState<string | null>(null);
+    const [isSupported, setIsSupported] = useState(true);
 
     useEffect(() => {
+        // Check if File System Access API is supported
+        if (!('showSaveFilePicker' in window)) {
+            setIsSupported(false);
+        }
+        
         db.sync.getHandle().then(h => {
             if (h) setLinkedHandleName(h.name);
         });
@@ -470,6 +477,10 @@ const DataManagement = ({ onBack, onRefresh, onSyncChange, syncState }: { onBack
 
     // New File (Write Mode)
     const handleCreateSyncFile = async () => {
+        if (!isSupported) {
+            alert("Your browser does not support saving directly to files. Please use Manual Backup.");
+            return;
+        }
         try {
             // @ts-ignore - Experimental API
             const handle = await window.showSaveFilePicker({
@@ -493,6 +504,10 @@ const DataManagement = ({ onBack, onRefresh, onSyncChange, syncState }: { onBack
 
     // Existing File (Read -> Write Mode)
     const handleLinkExistingFile = async () => {
+        if (!isSupported) {
+            alert("Your browser does not support opening local files directly. Please use Manual Restore.");
+            return;
+        }
         try {
              // @ts-ignore - Experimental API
              const [handle] = await window.showOpenFilePicker({
@@ -538,13 +553,19 @@ const DataManagement = ({ onBack, onRefresh, onSyncChange, syncState }: { onBack
                         </div>
                     </div>
                     
+                    {!isSupported && (
+                         <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded mb-4 text-sm">
+                            Browser not supported. Please use Chrome, Edge or Opera for File System Sync.
+                         </div>
+                    )}
+
                     {linkedHandleName ? (
                         <div className="bg-green-50 border border-green-200 rounded p-3 mb-4 text-sm text-green-800 flex items-center gap-2">
                             <Icon name="check" className="w-4 h-4" />
                             Active: <strong>{linkedHandleName}</strong>
                         </div>
                     ) : (
-                        <div className="bg-slate-50 border border-slate-200 rounded p-3 mb-4 text-sm text-slate-600">
+                        <div className={`bg-slate-50 border border-slate-200 rounded p-3 mb-4 text-sm text-slate-600 ${!isSupported ? 'opacity-50 pointer-events-none' : ''}`}>
                              <p className="mb-2 font-bold">Select an option:</p>
                              <div className="flex flex-col gap-2">
                                 <button 
@@ -1169,29 +1190,40 @@ const App = () => {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
   const refresh = async () => {
-    const [p, c, t, m, s, r, b, h] = await Promise.all([
-      db.projects.toArray(),
-      db.clients.toArray(),
-      db.templates.toArray(),
-      db.materials.toArray(),
-      db.settings.get(),
-      db.roomNames.toArray(),
-      db.branding.get(),
-      db.sync.getHandle()
-    ]);
-    setProjects(p.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    setClients(c.sort((a, b) => a.name.localeCompare(b.name)));
-    setTemplates(t);
-    setMaterials(m);
-    setSettings(s);
-    setRoomNames(r);
-    setBranding(b);
-    
-    setSyncHandle(h);
-    
-    // On startup, if handle exists but we haven't "connected", set to disconnected to prompt user
-    if (h && syncState === 'none') {
-        setSyncState('disconnected');
+    try {
+        const [p, c, t, m, s, r, b, h] = await Promise.all([
+          db.projects.toArray(),
+          db.clients.toArray(),
+          db.templates.toArray(),
+          db.materials.toArray(),
+          db.settings.get(),
+          db.roomNames.toArray(),
+          db.branding.get(),
+          db.sync.getHandle().catch(() => undefined) // Safe handle retrieval in case store missing
+        ]);
+        setProjects(p.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setClients(c.sort((a, b) => a.name.localeCompare(b.name)));
+        setTemplates(t);
+        setMaterials(m);
+        setSettings(s);
+        setRoomNames(r);
+        setBranding(b);
+        
+        setSyncHandle(h);
+        
+        // On startup, if handle exists but we haven't "connected", set to disconnected to prompt user
+        if (h && syncState === 'none') {
+            setSyncState('disconnected');
+        }
+    } catch (error) {
+        console.error("Failed to load data, falling back to defaults", error);
+        // Use defaults so the UI still renders even if IndexedDB fails
+        setSettings(DEFAULT_SETTINGS);
+        setBranding({ 
+          businessName: 'ProPaint Contractors', 
+          contactInfo: '123 Painter Lane\nCity, ST 12345\n(555) 555-5555',
+          reviewBlurb: 'See what your neighbors are saying about us! Scan to read our 5-star reviews.'
+      });
     }
   };
 
@@ -1289,7 +1321,7 @@ const App = () => {
       setSelectedRoom(null);
   };
 
-  if (!settings || !branding) return <div className="flex h-screen items-center justify-center text-slate-400">Loading ProPaint...</div>;
+  if (!settings || !branding) return <div className="flex h-screen items-center justify-center text-slate-400 animate-pulse">Loading ProPaint...</div>;
 
   if (selectedRoom && selectedProject) {
       return (
