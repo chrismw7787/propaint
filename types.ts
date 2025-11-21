@@ -1,4 +1,3 @@
-
 export enum PaintGrade {
   Contractor = 'Contractor',
   Standard = 'Standard',
@@ -144,26 +143,4 @@ export interface Project {
   // Aggregates
   totalCost: number;
   totalPrice: number;
-}
-
-// --- File System Access API Types ---
-export interface FileSystemHandle {
-  kind: 'file' | 'directory';
-  name: string;
-  isSameEntry(other: FileSystemHandle): Promise<boolean>;
-}
-
-export interface FileSystemFileHandle extends FileSystemHandle {
-  kind: 'file';
-  getFile(): Promise<File>;
-  createWritable(options?: any): Promise<FileSystemWritableFileStream>;
-  requestPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<'granted' | 'denied' | 'prompt'>;
-  queryPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<'granted' | 'denied' | 'prompt'>;
-}
-
-export interface FileSystemWritableFileStream extends WritableStream {
-  write(data: any): Promise<void>;
-  seek(position: number): Promise<void>;
-  truncate(size: number): Promise<void>;
-  close(): Promise<void>;
 }
