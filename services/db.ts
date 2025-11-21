@@ -9,6 +9,16 @@ const KEY_GLOBAL_SETTINGS = 'propaint_global_settings';
 const KEY_BRANDING_SETTINGS = 'propaint_branding_settings';
 const KEY_ROOM_NAMES = 'propaint_room_names';
 
+const ALL_KEYS = {
+    projects: KEY_PROJECTS,
+    clients: KEY_CLIENTS,
+    templates: KEY_TEMPLATES,
+    materials: KEY_MATERIALS,
+    globalSettings: KEY_GLOBAL_SETTINGS,
+    branding: KEY_BRANDING_SETTINGS,
+    roomNames: KEY_ROOM_NAMES
+};
+
 // Helper for generic local storage CRUD
 const createStore = <T extends { id?: string } | string>(key: string, defaultData: T[] = []) => {
     return {
@@ -86,6 +96,28 @@ export const db = {
       },
       save: async (settings: BrandingSettings): Promise<void> => {
           localStorage.setItem(KEY_BRANDING_SETTINGS, JSON.stringify(settings));
+      }
+  },
+
+  backup: {
+      export: async (): Promise<string> => {
+          const data: Record<string, any> = {};
+          for (const [key, storageKey] of Object.entries(ALL_KEYS)) {
+              const raw = localStorage.getItem(storageKey);
+              if (raw) {
+                  data[key] = JSON.parse(raw);
+              }
+          }
+          return JSON.stringify(data, null, 2);
+      },
+      import: async (jsonString: string): Promise<void> => {
+          const data = JSON.parse(jsonString);
+          // Basic validation and restore
+          for (const [key, storageKey] of Object.entries(ALL_KEYS)) {
+              if (data[key]) {
+                  localStorage.setItem(storageKey, JSON.stringify(data[key]));
+              }
+          }
       }
   }
 };
