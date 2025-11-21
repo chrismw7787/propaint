@@ -21,7 +21,12 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
         camera: <g><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></g>,
         download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />,
         upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
-        database: <g><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></g>
+        database: <g><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></g>,
+        tag: <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />,
+        layers: <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />,
+        tool: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />,
+        dollar: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
+        image: <g><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></g>
     };
     return (
         <svg 
@@ -362,27 +367,62 @@ const ClientDetail = ({ client, projects, onBack, onUpdate, onCreateEstimate, on
 const SettingsMenu = ({ onNavigate }: { onNavigate: (page: string) => void }) => (
     <div className="p-6 pb-24">
         <h1 className="text-3xl font-bold text-slate-900 mb-6">Settings</h1>
-        <div className="space-y-2">
-            {[
-                { id: 'branding', label: 'Branding', desc: 'Logos, business info, QR codes' },
-                { id: 'templates', label: 'Item Templates', desc: 'Manage wall, ceiling, trim definitions' },
-                { id: 'materials', label: 'Material Price Book', desc: 'Paint prices, coverage, and grades' },
-                { id: 'labor', label: 'Labor & Pricing', desc: 'Hourly rates, taxes, and profit margins' },
-                { id: 'roomNames', label: 'Room Names', desc: 'Manage preset room names' },
-                { id: 'data', label: 'Data Management', desc: 'Backup, Restore, and Sync' },
-            ].map(item => (
-                <button 
-                    key={item.id}
-                    onClick={() => onNavigate(item.id)}
-                    className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary flex justify-between items-center"
-                >
-                    <div>
-                        <div className="font-bold text-slate-800">{item.label}</div>
-                        <div className="text-xs text-slate-500">{item.desc}</div>
-                    </div>
-                    <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300" />
-                </button>
-            ))}
+        <div className="space-y-3">
+            
+            {/* Data Management */}
+            <button 
+                onClick={() => onNavigate('data')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Data Management</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Branding */}
+            <button 
+                onClick={() => onNavigate('branding')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Branding</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Templates */}
+            <button 
+                onClick={() => onNavigate('templates')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Item Templates</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Materials */}
+            <button 
+                onClick={() => onNavigate('materials')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Material Price Book</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Labor */}
+            <button 
+                onClick={() => onNavigate('labor')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Labor & Pricing</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Room Names */}
+            <button 
+                onClick={() => onNavigate('roomNames')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Room Names</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
         </div>
     </div>
 );
@@ -417,8 +457,7 @@ const DataManagement = ({ onBack, onRefresh }: { onBack: () => void, onRefresh: 
             } catch (err) {
                 alert("Failed to restore data. Invalid file.");
             }
-            // Clear input to allow re-selecting same file if needed
-            if (fileInputRef.current) fileInputRef.current.value = ''; 
+            if (fileInputRef.current) fileInputRef.current.value = '';
         };
         reader.readAsText(file);
     };

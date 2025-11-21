@@ -18,7 +18,15 @@ const Icon = ({ name, className }: { name: string, className?: string }) => {
         users: <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />,
         edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />,
         briefcase: <path d="M20 7h-3a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />,
-        camera: <g><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></g>
+        camera: <g><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></g>,
+        download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />,
+        upload: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />,
+        database: <g><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></g>,
+        tag: <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />,
+        layers: <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />,
+        tool: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />,
+        dollar: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
+        image: <g><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></g>
     };
     return (
         <svg 
@@ -359,29 +367,152 @@ const ClientDetail = ({ client, projects, onBack, onUpdate, onCreateEstimate, on
 const SettingsMenu = ({ onNavigate }: { onNavigate: (page: string) => void }) => (
     <div className="p-6 pb-24">
         <h1 className="text-3xl font-bold text-slate-900 mb-6">Settings</h1>
-        <div className="space-y-2">
-            {[
-                { id: 'branding', label: 'Branding', desc: 'Logos, business info, QR codes' },
-                { id: 'templates', label: 'Item Templates', desc: 'Manage wall, ceiling, trim definitions' },
-                { id: 'materials', label: 'Material Price Book', desc: 'Paint prices, coverage, and grades' },
-                { id: 'labor', label: 'Labor & Pricing', desc: 'Hourly rates, taxes, and profit margins' },
-                { id: 'roomNames', label: 'Room Names', desc: 'Manage preset room names' },
-            ].map(item => (
-                <button 
-                    key={item.id}
-                    onClick={() => onNavigate(item.id)}
-                    className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary flex justify-between items-center"
-                >
-                    <div>
-                        <div className="font-bold text-slate-800">{item.label}</div>
-                        <div className="text-xs text-slate-500">{item.desc}</div>
-                    </div>
-                    <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300" />
-                </button>
-            ))}
+        <div className="space-y-3">
+            
+            {/* Data Management */}
+            <button 
+                onClick={() => onNavigate('data')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Data Management</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Branding */}
+            <button 
+                onClick={() => onNavigate('branding')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Branding</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Templates */}
+            <button 
+                onClick={() => onNavigate('templates')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Item Templates</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Materials */}
+            <button 
+                onClick={() => onNavigate('materials')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Material Price Book</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Labor */}
+            <button 
+                onClick={() => onNavigate('labor')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Labor & Pricing</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
+            {/* Room Names */}
+            <button 
+                onClick={() => onNavigate('roomNames')}
+                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+            >
+                <div className="font-bold text-slate-800 text-lg">Room Names</div>
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+            </button>
+
         </div>
     </div>
 );
+
+const DataManagement = ({ onBack, onRefresh }: { onBack: () => void, onRefresh: () => void }) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleExport = async () => {
+        const json = await db.backup.export();
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `propaint_backup_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            try {
+                const json = ev.target?.result as string;
+                await db.backup.import(json);
+                alert("Data restored successfully!");
+                onRefresh();
+            } catch (err) {
+                alert("Failed to restore data. Invalid file.");
+            }
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        };
+        reader.readAsText(file);
+    };
+
+    return (
+        <div className="h-full flex flex-col bg-slate-50">
+            <header className="bg-white p-4 border-b flex items-center gap-4">
+                <button onClick={onBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
+                <h1 className="font-bold text-lg">Data Management</h1>
+            </header>
+            <div className="p-6 space-y-6">
+                
+                 <div className="bg-white p-6 rounded-lg border border-blue-200 shadow-sm">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="bg-blue-100 p-3 rounded-full text-secondary">
+                            <Icon name="database" className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg">Local Storage</h3>
+                            <p className="text-sm text-slate-500">Your data is automatically saved to this tablet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="bg-slate-100 p-3 rounded-full text-slate-600">
+                            <Icon name="download" className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg">Backup Data</h3>
+                            <p className="text-sm text-slate-500">Download a snapshot of your data to a file.</p>
+                        </div>
+                    </div>
+                    <button onClick={handleExport} className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg">Download Backup (.json)</button>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="bg-orange-100 p-3 rounded-full text-orange-600">
+                            <Icon name="upload" className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg">Restore Data</h3>
+                            <p className="text-sm text-slate-500">Load a previously saved backup file. This will overwrite current data.</p>
+                        </div>
+                    </div>
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
+                    <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-slate-100 text-slate-800 font-bold rounded-lg hover:bg-slate-200 border border-slate-300">Select Backup File</button>
+                </div>
+
+            </div>
+        </div>
+    );
+};
 
 const BrandingEditor = ({ branding, onSave, onBack }: { branding: BrandingSettings, onSave: (b: BrandingSettings) => void, onBack: () => void }) => {
     const [local, setLocal] = useState(branding);
@@ -511,13 +642,13 @@ const TemplatesEditor = ({ templates, onUpdate, onBack }: { templates: ItemTempl
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
                             <select className="w-full p-2 border rounded bg-white" value={editingItem.category} onChange={e => setEditingItem({...editingItem, category: e.target.value as SurfaceCategory})}>
-                                {Object.values(SurfaceCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                                {(Object.values(SurfaceCategory) as string[]).map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase">Measure Type</label>
                             <select className="w-full p-2 border rounded bg-white" value={editingItem.measureType} onChange={e => setEditingItem({...editingItem, measureType: e.target.value as MeasureType})}>
-                                {Object.values(MeasureType).map(c => <option key={c} value={c}>{c}</option>)}
+                                {(Object.values(MeasureType) as string[]).map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
                     </div>
@@ -590,10 +721,10 @@ const MaterialsEditor = ({ materials, onUpdate, onBack }: { materials: MaterialL
                     <input placeholder="Product Line" className="w-full p-2 border rounded" value={editing.line || ''} onChange={e => setEditing({...editing, line: e.target.value})} />
                     <div className="grid grid-cols-2 gap-4">
                         <select className="w-full p-2 border rounded" value={editing.grade} onChange={e => setEditing({...editing, grade: e.target.value as PaintGrade})}>
-                             {Object.values(PaintGrade).map(g => <option key={g} value={g}>{g}</option>)}
+                             {(Object.values(PaintGrade) as string[]).map(g => <option key={g} value={g}>{g}</option>)}
                         </select>
                         <select className="w-full p-2 border rounded" value={editing.surfaceCategory} onChange={e => setEditing({...editing, surfaceCategory: e.target.value as SurfaceCategory})}>
-                             {Object.values(SurfaceCategory).map(c => <option key={c} value={c}>{c}</option>)}
+                             {(Object.values(SurfaceCategory) as string[]).map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
                      {/* Removed Sheen select from here */}
@@ -1453,7 +1584,7 @@ const RoomEditor = ({ room, projectSettings, templates, materials, onSave, onBac
                                         value={item.sheen}
                                         onChange={(e) => handleUpdateItem(item.id, { sheen: e.target.value as PaintSheen })}
                                      >
-                                         {Object.values(PaintSheen).map(s => <option key={s} value={s}>{s}</option>)}
+                                         {(Object.values(PaintSheen) as string[]).map(s => <option key={s} value={s}>{s}</option>)}
                                      </select>
                                  </div>
                                  <div>
@@ -1656,6 +1787,7 @@ const App = () => {
       if (subView === 'labor') return <LaborSettings settings={settings} onSave={async (s) => { await db.settings.save(s); refresh(); }} onBack={() => setSubView(null)} />;
       if (subView === 'roomNames') return <RoomNamesEditor roomNames={roomNames} onUpdate={refresh} onBack={() => setSubView(null)} />;
       if (subView === 'branding') return <BrandingEditor branding={branding} onSave={async (b) => { await db.branding.save(b); refresh(); }} onBack={() => setSubView(null)} />;
+      if (subView === 'data') return <DataManagement onRefresh={refresh} onBack={() => setSubView(null)} />;
   }
 
   return (
