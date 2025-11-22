@@ -2,6 +2,7 @@ export enum PaintGrade {
   Contractor = 'Contractor',
   Standard = 'Standard',
   Premium = 'Premium',
+  HighPerformance = 'High Performance',
 }
 
 export enum PaintSheen {
@@ -13,20 +14,16 @@ export enum PaintSheen {
   Gloss = 'Gloss',
 }
 
-export enum SurfaceCategory {
-  Walls = 'walls',
-  Ceiling = 'ceiling',
-  Trim = 'trim',
-  Doors = 'doors',
-  Windows = 'windows',
-  Other = 'other',
-}
-
 export enum MeasureType {
   Area = 'area',
   Length = 'length',
   Count = 'count',
   None = 'none',
+}
+
+export interface Service {
+  id: string;
+  name: string;
 }
 
 export interface Client {
@@ -44,7 +41,8 @@ export interface MaterialLine {
   line: string;
   grade: PaintGrade;
   // Sheen is no longer defined at the material book level, it is selected per instance
-  surfaceCategory: SurfaceCategory;
+  surfaceCategory: string;
+  serviceId: string; // Link to Service (Interior, Exterior, etc.)
   coverageSqft: number;
   pricePerGallon: number;
 }
@@ -52,7 +50,8 @@ export interface MaterialLine {
 export interface ItemTemplate {
   id: string;
   name: string;
-  category: SurfaceCategory;
+  category: string;
+  serviceId: string; // Link to Service (Interior, Exterior, etc.)
   measureType: MeasureType;
   defaultCoats: number;
   defaultWastePct: number;
@@ -65,7 +64,7 @@ export interface ItemInstance {
   id: string;
   templateId: string;
   name: string; // Copied from template for display
-  category: SurfaceCategory;
+  category: string;
   
   // Quantity Overrides/Calculated
   quantity: number; // The raw measured quantity (sqft, lf, count)
@@ -89,6 +88,7 @@ export interface ItemInstance {
 export interface Room {
   id: string;
   name: string;
+  serviceId: string; // The service this room belongs to (e.g., Interior, Exterior)
   
   // Dimensions
   length: number;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PaintGrade, Project, Room, ItemInstance, SurfaceCategory, PaintSheen, Client, ItemTemplate, MaterialLine, MeasureType, ProjectSettings, BrandingSettings } from './types';
+import { PaintGrade, Project, Room, ItemInstance, PaintSheen, Client, ItemTemplate, MaterialLine, MeasureType, ProjectSettings, BrandingSettings, Service } from './types';
 import { calculateQuantity, calculateItemCost, calculateProjectTotals, calculateRoomTotal } from './services/calculationEngine';
 import { db } from './services/db';
 import { parseRoomDescription, suggestColors } from './services/geminiService';
+import { DEFAULT_SERVICES, DEFAULT_CATEGORIES } from './constants';
 
 // --- Icons ---
 const Icon = ({ name, className }: { name: string, className?: string }) => {
@@ -53,6 +54,8 @@ interface AppData {
     materials: MaterialLine[];
     globalSettings: ProjectSettings;
     roomNames: string[];
+    services: Service[];
+    categories: string[];
     branding: BrandingSettings;
     refresh: () => Promise<void>;
 }
@@ -372,62 +375,161 @@ const SettingsMenu = ({ onNavigate }: { onNavigate: (page: string) => void }) =>
             {/* Data Management */}
             <button 
                 onClick={() => onNavigate('data')}
-                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+                className="w-full text-left p-4 bg-white text-slate-800 font-bold text-lg border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center"
             >
-                <div className="font-bold text-slate-800 text-lg">Data Management</div>
-                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+                Services & Categories
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300" />
             </button>
-
-            {/* Branding */}
+            
+             {/* Branding */}
             <button 
                 onClick={() => onNavigate('branding')}
-                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+                className="w-full text-left p-4 bg-white text-slate-800 font-bold text-lg border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center"
             >
-                <div className="font-bold text-slate-800 text-lg">Branding</div>
-                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+                Branding
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300" />
             </button>
 
             {/* Templates */}
             <button 
                 onClick={() => onNavigate('templates')}
-                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+                className="w-full text-left p-4 bg-white text-slate-800 font-bold text-lg border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center"
             >
-                <div className="font-bold text-slate-800 text-lg">Item Templates</div>
-                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+                Item Templates
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300" />
             </button>
 
             {/* Materials */}
             <button 
                 onClick={() => onNavigate('materials')}
-                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+                className="w-full text-left p-4 bg-white text-slate-800 font-bold text-lg border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center"
             >
-                <div className="font-bold text-slate-800 text-lg">Material Price Book</div>
-                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+                Material Price Book
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300" />
             </button>
 
             {/* Labor */}
             <button 
                 onClick={() => onNavigate('labor')}
-                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+                className="w-full text-left p-4 bg-white text-slate-800 font-bold text-lg border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center"
             >
-                <div className="font-bold text-slate-800 text-lg">Labor & Pricing</div>
-                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+                Labor & Pricing
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300" />
             </button>
-
-            {/* Room Names */}
+            
+            {/* Data & Backup */}
             <button 
-                onClick={() => onNavigate('roomNames')}
-                className="w-full text-left p-4 bg-white border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center group"
+                onClick={() => onNavigate('backup')}
+                className="w-full text-left p-4 bg-white text-slate-800 font-bold text-lg border rounded-lg shadow-sm hover:border-secondary hover:shadow-md transition-all flex justify-between items-center"
             >
-                <div className="font-bold text-slate-800 text-lg">Room Names</div>
-                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300 group-hover:text-secondary" />
+                Backup & Restore
+                <Icon name="chevronLeft" className="w-5 h-5 rotate-180 text-slate-300" />
             </button>
 
         </div>
     </div>
 );
 
-const DataManagement = ({ onBack, onRefresh }: { onBack: () => void, onRefresh: () => void }) => {
+const DataManagement = ({ services, categories, roomNames, onUpdate, onBack }: { services: Service[], categories: string[], roomNames: string[], onUpdate: () => void, onBack: () => void }) => {
+    const [activeTab, setActiveTab] = useState<'services' | 'categories' | 'rooms'>('services');
+    const [newItem, setNewItem] = useState('');
+
+    const handleAdd = async () => {
+        if (!newItem.trim()) return;
+        if (activeTab === 'services') {
+            await db.services.put({ id: `svc_${Date.now()}`, name: newItem.trim() });
+        } else if (activeTab === 'categories') {
+            await db.categories.put(newItem.trim());
+        } else {
+            await db.roomNames.put(newItem.trim());
+        }
+        setNewItem('');
+        onUpdate();
+    };
+
+    const handleDelete = async (item: any) => {
+        if (activeTab === 'services') {
+            if (confirm(`Delete service "${item.name}"?`)) {
+                await db.services.delete(item.id);
+            }
+        } else if (activeTab === 'categories') {
+            await db.categories.delete(item);
+        } else {
+            await db.roomNames.delete(item);
+        }
+        onUpdate();
+    };
+
+    return (
+        <div className="h-full flex flex-col bg-slate-50">
+            <header className="bg-white p-4 border-b flex items-center gap-4">
+                <button onClick={onBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
+                <h1 className="font-bold text-lg">Data Management</h1>
+            </header>
+            
+            <div className="flex bg-white border-b">
+                <button 
+                    onClick={() => setActiveTab('services')} 
+                    className={`flex-1 py-3 text-sm font-bold border-b-2 ${activeTab === 'services' ? 'border-secondary text-secondary' : 'border-transparent text-slate-500'}`}
+                >
+                    Services
+                </button>
+                <button 
+                    onClick={() => setActiveTab('categories')} 
+                    className={`flex-1 py-3 text-sm font-bold border-b-2 ${activeTab === 'categories' ? 'border-secondary text-secondary' : 'border-transparent text-slate-500'}`}
+                >
+                    Categories
+                </button>
+                 <button 
+                    onClick={() => setActiveTab('rooms')} 
+                    className={`flex-1 py-3 text-sm font-bold border-b-2 ${activeTab === 'rooms' ? 'border-secondary text-secondary' : 'border-transparent text-slate-500'}`}
+                >
+                    Room Names
+                </button>
+            </div>
+
+            <div className="p-4 border-b bg-white flex gap-2">
+                <input 
+                    className="flex-1 p-2 border rounded" 
+                    placeholder={`Add new ${activeTab === 'services' ? 'service' : activeTab === 'categories' ? 'category' : 'room name'}...`} 
+                    value={newItem} 
+                    onChange={e => setNewItem(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                />
+                <button onClick={handleAdd} className="bg-secondary text-white px-4 rounded font-bold">Add</button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-y-auto">
+                {activeTab === 'services' && services.map(s => (
+                    <div key={s.id} className="flex justify-between items-center p-3 bg-white border rounded mb-2 shadow-sm">
+                        <span className="font-medium">{s.name}</span>
+                        <button onClick={() => handleDelete(s)} className="text-red-400 p-2 hover:bg-red-50 rounded">
+                            <Icon name="trash" className="w-4 h-4" />
+                        </button>
+                    </div>
+                ))}
+                {activeTab === 'categories' && categories.map(c => (
+                    <div key={c} className="flex justify-between items-center p-3 bg-white border rounded mb-2 shadow-sm">
+                        <span className="font-medium">{c}</span>
+                        <button onClick={() => handleDelete(c)} className="text-red-400 p-2 hover:bg-red-50 rounded">
+                            <Icon name="trash" className="w-4 h-4" />
+                        </button>
+                    </div>
+                ))}
+                {activeTab === 'rooms' && roomNames.map(r => (
+                    <div key={r} className="flex justify-between items-center p-3 bg-white border rounded mb-2 shadow-sm">
+                        <span className="font-medium">{r}</span>
+                        <button onClick={() => handleDelete(r)} className="text-red-400 p-2 hover:bg-red-50 rounded">
+                            <Icon name="trash" className="w-4 h-4" />
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const BackupRestore = ({ onBack, onRefresh }: { onBack: () => void, onRefresh: () => void }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleExport = async () => {
@@ -466,10 +568,9 @@ const DataManagement = ({ onBack, onRefresh }: { onBack: () => void, onRefresh: 
         <div className="h-full flex flex-col bg-slate-50">
             <header className="bg-white p-4 border-b flex items-center gap-4">
                 <button onClick={onBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
-                <h1 className="font-bold text-lg">Data Management</h1>
+                <h1 className="font-bold text-lg">Backup & Restore</h1>
             </header>
             <div className="p-6 space-y-6">
-                
                  <div className="bg-white p-6 rounded-lg border border-blue-200 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="bg-blue-100 p-3 rounded-full text-secondary">
@@ -508,7 +609,6 @@ const DataManagement = ({ onBack, onRefresh }: { onBack: () => void, onRefresh: 
                     <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
                     <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-slate-100 text-slate-800 font-bold rounded-lg hover:bg-slate-200 border border-slate-300">Select Backup File</button>
                 </div>
-
             </div>
         </div>
     );
@@ -604,7 +704,7 @@ const BrandingEditor = ({ branding, onSave, onBack }: { branding: BrandingSettin
     );
 };
 
-const TemplatesEditor = ({ templates, onUpdate, onBack }: { templates: ItemTemplate[], onUpdate: () => void, onBack: () => void }) => {
+const TemplatesEditor = ({ templates, services, categories, onUpdate, onBack }: { templates: ItemTemplate[], services: Service[], categories: string[], onUpdate: () => void, onBack: () => void }) => {
     const [editingItem, setEditingItem] = useState<Partial<ItemTemplate> | null>(null);
 
     const handleSave = async () => {
@@ -612,7 +712,9 @@ const TemplatesEditor = ({ templates, onUpdate, onBack }: { templates: ItemTempl
         await db.templates.put({
             ...editingItem,
             id: editingItem.id || `tpl_${Date.now()}`,
-            category: editingItem.category || SurfaceCategory.Other,
+            // Default if missing
+            category: editingItem.category || categories[0] || 'Other',
+            serviceId: editingItem.serviceId || services[0]?.id || 'svc_interior',
             measureType: editingItem.measureType || MeasureType.Count,
             defaultCoats: editingItem.defaultCoats || 2,
             defaultWastePct: editingItem.defaultWastePct || 0.1,
@@ -624,10 +726,27 @@ const TemplatesEditor = ({ templates, onUpdate, onBack }: { templates: ItemTempl
         onUpdate();
     };
 
+    const handleDelete = async () => {
+        if (!editingItem?.id) return;
+        if (window.confirm('Are you sure you want to delete this template?')) {
+            await db.templates.delete(editingItem.id);
+            setEditingItem(null);
+            onUpdate();
+        }
+    };
+
+    const handleBack = () => {
+        if (editingItem) {
+            setEditingItem(null);
+        } else {
+            onBack();
+        }
+    };
+
     return (
         <div className="h-full flex flex-col bg-slate-50">
             <header className="bg-white p-4 border-b flex items-center gap-4">
-                <button onClick={onBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
+                <button onClick={handleBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
                 <h1 className="font-bold text-lg">Item Templates</h1>
                 <button onClick={() => setEditingItem({})} className="ml-auto text-secondary font-bold">Add</button>
             </header>
@@ -639,25 +758,40 @@ const TemplatesEditor = ({ templates, onUpdate, onBack }: { templates: ItemTempl
                         <input className="w-full p-2 border rounded bg-white" value={editingItem.name || ''} onChange={e => setEditingItem({...editingItem, name: e.target.value})} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
-                            <select className="w-full p-2 border rounded bg-white" value={editingItem.category} onChange={e => setEditingItem({...editingItem, category: e.target.value as SurfaceCategory})}>
-                                {(Object.values(SurfaceCategory) as string[]).map(c => <option key={c} value={c}>{c}</option>)}
+                         <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Service</label>
+                            <select className="w-full p-2 border rounded bg-white" value={editingItem.serviceId || ''} onChange={e => setEditingItem({...editingItem, serviceId: e.target.value})}>
+                                <option value="" disabled>Select Service</option>
+                                {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
                         <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
+                            <select className="w-full p-2 border rounded bg-white" value={editingItem.category || ''} onChange={e => setEditingItem({...editingItem, category: e.target.value})}>
+                                <option value="" disabled>Select Category</option>
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase">Measure Type</label>
                             <select className="w-full p-2 border rounded bg-white" value={editingItem.measureType} onChange={e => setEditingItem({...editingItem, measureType: e.target.value as MeasureType})}>
                                 {(Object.values(MeasureType) as string[]).map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
-                    </div>
-                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase">Prod (min/unit)</label>
-                            <input type="number" className="w-full p-2 border rounded bg-white" value={editingItem.productivityMinutesPerUnit} onChange={e => setEditingItem({...editingItem, productivityMinutesPerUnit: parseFloat(e.target.value)})} />
+                            <label className="text-xs font-bold text-slate-500 uppercase">Prod (hr/unit)</label>
+                            <input 
+                                type="number" 
+                                className="w-full p-2 border rounded bg-white" 
+                                value={editingItem.productivityMinutesPerUnit ? editingItem.productivityMinutesPerUnit / 60 : 0} 
+                                onChange={e => setEditingItem({...editingItem, productivityMinutesPerUnit: parseFloat(e.target.value) * 60})} 
+                            />
                         </div>
-                         <div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
                             <label className="text-xs font-bold text-slate-500 uppercase">Default Coats</label>
                             <input type="number" className="w-full p-2 border rounded bg-white" value={editingItem.defaultCoats} onChange={e => setEditingItem({...editingItem, defaultCoats: parseFloat(e.target.value)})} />
                         </div>
@@ -673,13 +807,23 @@ const TemplatesEditor = ({ templates, onUpdate, onBack }: { templates: ItemTempl
                         />
                     </div>
                     <button onClick={handleSave} className="w-full py-3 bg-secondary text-white rounded font-bold mt-4">Save Template</button>
+                    {editingItem.id && (
+                        <button onClick={handleDelete} className="w-full py-3 bg-white text-red-500 border border-red-200 rounded font-bold mt-2 hover:bg-red-50">
+                            Delete Template
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="p-4 grid gap-3 overflow-y-auto">
                     {templates.map(t => (
                         <div key={t.id} onClick={() => setEditingItem(t)} className="bg-white p-3 rounded border shadow-sm cursor-pointer hover:border-secondary">
-                            <div className="font-bold">{t.name}</div>
-                            <div className="text-xs text-slate-500">{t.category} • {t.measureType}</div>
+                            <div className="flex justify-between items-center">
+                                <div className="font-bold">{t.name}</div>
+                                <span className="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-bold">
+                                    {services.find(s => s.id === t.serviceId)?.name || 'Unknown Service'}
+                                </span>
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">{t.category} • {t.measureType}</div>
                         </div>
                     ))}
                 </div>
@@ -688,8 +832,13 @@ const TemplatesEditor = ({ templates, onUpdate, onBack }: { templates: ItemTempl
     );
 };
 
-const MaterialsEditor = ({ materials, onUpdate, onBack }: { materials: MaterialLine[], onUpdate: () => void, onBack: () => void }) => {
+const MaterialsEditor = ({ materials, categories, services, onUpdate, onBack }: { materials: MaterialLine[], categories: string[], services: Service[], onUpdate: () => void, onBack: () => void }) => {
     const [editing, setEditing] = useState<Partial<MaterialLine> | null>(null);
+    const [selectedServiceId, setSelectedServiceId] = useState<string>('all');
+
+    const filteredMaterials = selectedServiceId === 'all' 
+        ? materials 
+        : materials.filter(m => m.serviceId === selectedServiceId);
 
     const handleSave = async () => {
         if(!editing || !editing.line) return;
@@ -698,8 +847,8 @@ const MaterialsEditor = ({ materials, onUpdate, onBack }: { materials: MaterialL
             id: editing.id || `mat_${Date.now()}`,
             brand: editing.brand || 'Generic',
             grade: editing.grade || PaintGrade.Standard,
-            // sheen: editing.sheen || PaintSheen.Satin, // REMOVED
-            surfaceCategory: editing.surfaceCategory || SurfaceCategory.Walls,
+            surfaceCategory: editing.surfaceCategory || categories[0] || 'Other',
+            serviceId: editing.serviceId || services[0]?.id || 'svc_interior',
             coverageSqft: editing.coverageSqft || 350,
             pricePerGallon: editing.pricePerGallon || 45
         } as MaterialLine);
@@ -707,27 +856,77 @@ const MaterialsEditor = ({ materials, onUpdate, onBack }: { materials: MaterialL
         onUpdate();
     };
 
+    const handleDelete = async () => {
+        if (!editing?.id) return;
+        if (window.confirm('Are you sure you want to delete this material?')) {
+            await db.materials.delete(editing.id);
+            setEditing(null);
+            onUpdate();
+        }
+    };
+
+    const handleBack = () => {
+        if (editing) {
+            setEditing(null);
+        } else {
+            onBack();
+        }
+    };
+
     return (
         <div className="h-full flex flex-col bg-slate-50">
             <header className="bg-white p-4 border-b flex items-center gap-4">
-                <button onClick={onBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
+                <button onClick={handleBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
                 <h1 className="font-bold text-lg">Materials</h1>
-                <button onClick={() => setEditing({})} className="ml-auto text-secondary font-bold">Add</button>
+                {!editing && (
+                     <div className="ml-auto flex items-center gap-2">
+                         <select 
+                            className="text-sm p-1.5 border rounded bg-slate-50" 
+                            value={selectedServiceId} 
+                            onChange={e => setSelectedServiceId(e.target.value)}
+                         >
+                             <option value="all">All Services</option>
+                             {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                         </select>
+                         <button onClick={() => setEditing({})} className="text-secondary font-bold ml-2">Add</button>
+                     </div>
+                )}
             </header>
 
             {editing ? (
                  <div className="p-4 space-y-4 flex-1 overflow-y-auto">
                     <input placeholder="Brand" className="w-full p-2 border rounded" value={editing.brand || ''} onChange={e => setEditing({...editing, brand: e.target.value})} />
                     <input placeholder="Product Line" className="w-full p-2 border rounded" value={editing.line || ''} onChange={e => setEditing({...editing, line: e.target.value})} />
+                    
                     <div className="grid grid-cols-2 gap-4">
-                        <select className="w-full p-2 border rounded" value={editing.grade} onChange={e => setEditing({...editing, grade: e.target.value as PaintGrade})}>
-                             {(Object.values(PaintGrade) as string[]).map(g => <option key={g} value={g}>{g}</option>)}
-                        </select>
-                        <select className="w-full p-2 border rounded" value={editing.surfaceCategory} onChange={e => setEditing({...editing, surfaceCategory: e.target.value as SurfaceCategory})}>
-                             {(Object.values(SurfaceCategory) as string[]).map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                         <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Service</label>
+                            <select className="w-full p-2 border rounded bg-white" value={editing.serviceId || ''} onChange={e => setEditing({...editing, serviceId: e.target.value})}>
+                                <option value="" disabled>Select Service</option>
+                                {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
+                            <select className="w-full p-2 border rounded bg-white" value={editing.surfaceCategory || ''} onChange={e => setEditing({...editing, surfaceCategory: e.target.value})}>
+                                <option value="" disabled>Select Category</option>
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
                     </div>
-                     {/* Removed Sheen select from here */}
+
+                    <div className="grid grid-cols-1 gap-4">
+                        <div>
+                             <label className="text-xs font-bold text-slate-500 uppercase">Grade</label>
+                            <select className="w-full p-2 border rounded" value={editing.grade} onChange={e => setEditing({...editing, grade: e.target.value as PaintGrade})}>
+                                 <option value={PaintGrade.Contractor}>Contractor</option>
+                                 <option value={PaintGrade.Standard}>Standard</option>
+                                 <option value={PaintGrade.Premium}>Premium</option>
+                                 <option value={PaintGrade.HighPerformance}>High Performance</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                      <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-bold text-slate-500">$/Gallon</label>
@@ -739,18 +938,34 @@ const MaterialsEditor = ({ materials, onUpdate, onBack }: { materials: MaterialL
                         </div>
                     </div>
                     <button onClick={handleSave} className="w-full py-3 bg-secondary text-white rounded font-bold mt-4">Save Material</button>
+                    {editing.id && (
+                        <button onClick={handleDelete} className="w-full py-3 bg-white text-red-500 border border-red-200 rounded font-bold mt-2 hover:bg-red-50">
+                            Delete Material
+                        </button>
+                    )}
                  </div>
             ) : (
                 <div className="p-4 grid gap-3 overflow-y-auto">
-                    {materials.map(m => (
-                        <div key={m.id} onClick={() => setEditing(m)} className="bg-white p-3 rounded border shadow-sm cursor-pointer hover:border-secondary">
-                            <div className="flex justify-between">
-                                <div className="font-bold">{m.line}</div>
-                                <div className="font-bold text-green-700">${m.pricePerGallon}</div>
-                            </div>
-                            <div className="text-xs text-slate-500">{m.brand} • {m.grade}</div>
+                    {filteredMaterials.length === 0 ? (
+                        <div className="text-center text-slate-400 py-10 italic">
+                            No materials found for this service.
                         </div>
-                    ))}
+                    ) : (
+                        filteredMaterials.map(m => (
+                            <div key={m.id} onClick={() => setEditing(m)} className="bg-white p-3 rounded border shadow-sm cursor-pointer hover:border-secondary">
+                                <div className="flex justify-between">
+                                    <div className="font-bold">{m.line}</div>
+                                    <div className="font-bold text-green-700">${m.pricePerGallon}</div>
+                                </div>
+                                <div className="flex justify-between items-center mt-1">
+                                    <div className="text-xs text-slate-500">{m.brand} • {m.grade}</div>
+                                    <span className="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-bold">
+                                        {services.find(s => s.id === m.serviceId)?.name || 'Unknown Service'}
+                                    </span>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             )}
         </div>
@@ -841,12 +1056,19 @@ const LaborSettings = ({ settings, onSave, onBack }: { settings: ProjectSettings
 
 // --- Updated Detail & Room Components ---
 
-const EstimatePreview = ({ project, client, templates, branding, onClose }: { project: Project, client?: Client, templates: ItemTemplate[], branding: BrandingSettings, onClose: () => void }) => {
+const EstimatePreview = ({ project, client, templates, branding, services, onClose }: { project: Project, client?: Client, templates: ItemTemplate[], branding: BrandingSettings, services: Service[], onClose: () => void }) => {
     // Calculation for display
     const getScope = (item: ItemInstance) => {
         const tpl = templates.find(t => t.id === item.templateId);
         return tpl?.description || '';
     };
+
+    // Group rooms by Service
+    const serviceGroups = services.map(service => {
+        const rooms = project.rooms.filter(r => (r.serviceId === service.id) || (!r.serviceId && service.id === services[0].id));
+        const total = rooms.reduce((sum, r) => sum + calculateRoomTotal(r), 0);
+        return { service, rooms, total };
+    }).filter(g => g.rooms.length > 0); // Only show active services
 
     return (
         <div className="fixed inset-0 bg-slate-800 z-[100] overflow-y-auto">
@@ -897,41 +1119,53 @@ const EstimatePreview = ({ project, client, templates, branding, onClose }: { pr
                         </div>
                     </div>
 
-                    {/* Rooms */}
-                    <div className="space-y-8 flex-1">
-                        {project.rooms.filter(r => r.included && r.items.length > 0).map(room => (
-                            <div key={room.id} className="break-inside-avoid">
-                                <div className="flex items-center gap-4 border-b border-slate-200 pb-2 mb-4">
-                                    {room.photos?.[0] && (
-                                        <img src={room.photos[0]} alt="Room" className="w-16 h-16 object-cover rounded border border-slate-200" />
-                                    )}
-                                    <h3 className="font-bold text-xl text-slate-800">{room.name}</h3>
+                    {/* Grouped Rooms */}
+                    <div className="space-y-10 flex-1">
+                        {serviceGroups.map(group => (
+                            <div key={group.service.id} className="break-inside-avoid">
+                                {/* Service Divider */}
+                                <div className="bg-slate-800 text-white px-4 py-2 mb-4 flex justify-between items-center print:bg-slate-900">
+                                    <h2 className="font-bold uppercase tracking-widest text-sm">{group.service.name}</h2>
+                                    <span className="font-medium opacity-80">${group.total.toLocaleString(undefined, {minimumFractionDigits: 0})}</span>
                                 </div>
-                                
-                                <table className="w-full text-sm text-left mb-2">
-                                    <thead>
-                                        <tr className="text-slate-400 border-b border-slate-100">
-                                            <th className="font-bold uppercase text-[10px] py-2 w-1/3">Item</th>
-                                            <th className="font-bold uppercase text-[10px] py-2 w-2/3">Scope of Work</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {room.items.map(item => (
-                                            <tr key={item.id}>
-                                                <td className="py-2 align-top font-bold text-slate-800 pr-4">
-                                                    {item.name}
-                                                    <div className="text-xs text-slate-400 font-normal mt-0.5">{item.color} • {item.sheen}</div>
-                                                </td>
-                                                <td className="py-2 align-top text-slate-600 pr-4">
-                                                    {getScope(item)}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                <div className="text-right mt-2 pt-2 bg-slate-50 px-2 rounded">
-                                    <span className="text-xs font-bold text-slate-500 uppercase mr-4">Room Total</span>
-                                    <span className="font-bold text-slate-900 text-lg">${calculateRoomTotal(room).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+
+                                <div className="space-y-6">
+                                    {group.rooms.filter(r => r.included && r.items.length > 0).map(room => (
+                                        <div key={room.id} className="pl-2 break-inside-avoid">
+                                            <div className="flex items-center gap-4 border-b border-slate-200 pb-2 mb-4">
+                                                {room.photos?.[0] && (
+                                                    <img src={room.photos[0]} alt="Room" className="w-12 h-12 object-cover rounded border border-slate-200" />
+                                                )}
+                                                <h3 className="font-bold text-lg text-slate-800">{room.name}</h3>
+                                            </div>
+                                            
+                                            <table className="w-full text-sm text-left mb-2">
+                                                <thead>
+                                                    <tr className="text-slate-400 border-b border-slate-100">
+                                                        <th className="font-bold uppercase text-[10px] py-2 w-1/3">Item</th>
+                                                        <th className="font-bold uppercase text-[10px] py-2 w-2/3">Scope of Work</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    {room.items.map(item => (
+                                                        <tr key={item.id}>
+                                                            <td className="py-2 align-top font-bold text-slate-800 pr-4">
+                                                                {item.name}
+                                                                <div className="text-xs text-slate-400 font-normal mt-0.5">{item.color} • {item.sheen}</div>
+                                                            </td>
+                                                            <td className="py-2 align-top text-slate-600 pr-4">
+                                                                {getScope(item)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                            <div className="text-right mt-2 pt-1 px-2 rounded">
+                                                <span className="text-xs font-bold text-slate-400 uppercase mr-4">Room Total</span>
+                                                <span className="font-bold text-slate-700">${calculateRoomTotal(room).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         ))}
@@ -985,7 +1219,7 @@ const EstimatePreview = ({ project, client, templates, branding, onClose }: { pr
     );
 };
 
-const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames }: { isOpen: boolean, onClose: () => void, onAdd: (name: string, photo?: string) => void, roomNames: string[] }) => {
+const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames, serviceId, serviceName }: { isOpen: boolean, onClose: () => void, onAdd: (name: string, photo?: string) => void, roomNames: string[], serviceId: string, serviceName: string }) => {
     const [customName, setCustomName] = useState('');
     const [photo, setPhoto] = useState<string | null>(null);
     
@@ -1038,7 +1272,7 @@ const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames }: { isOpen: boolean, 
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-end sm:items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in-0">
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50">
-                    <h3 className="font-bold text-lg">Add Room</h3>
+                    <h3 className="font-bold text-lg">Add {serviceName} Area</h3>
                     <button onClick={onClose}>✕</button>
                 </div>
                 <div className="p-4">
@@ -1064,7 +1298,7 @@ const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames }: { isOpen: boolean, 
                                 )}
                             </label>
                             <div className="text-xs text-slate-500 flex-1">
-                                Take a photo to distinguish this room (optional).
+                                Take a photo to distinguish this area (optional).
                                 {photo && <button onClick={() => setPhoto(null)} className="block text-red-500 font-bold mt-1">Remove</button>}
                             </div>
                          </div>
@@ -1085,7 +1319,7 @@ const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames }: { isOpen: boolean, 
                          </div>
                     </div>
                     <div className="border-t pt-4">
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Room Name</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Area Name</label>
                         <div className="flex gap-2">
                             <input 
                                 autoFocus
@@ -1110,17 +1344,24 @@ const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames }: { isOpen: boolean, 
     );
 };
 
-const ProjectDetail = ({ project, client, templates, roomNames, branding, onBack, onUpdate, onSelectRoom }: { project: Project, client?: Client, templates: ItemTemplate[], roomNames: string[], branding: BrandingSettings, onBack: () => void, onUpdate: (p: Project) => void, onSelectRoom: (r: Room) => void }) => {
+const ProjectDetail = ({ project, client, templates, roomNames, branding, services, onBack, onUpdate, onSelectRoom }: { project: Project, client?: Client, templates: ItemTemplate[], roomNames: string[], branding: BrandingSettings, services: Service[], onBack: () => void, onUpdate: (p: Project) => void, onSelectRoom: (r: Room) => void }) => {
   const [isAddingRoom, setIsAddingRoom] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [targetServiceId, setTargetServiceId] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoRoomId, setPhotoRoomId] = useState<string | null>(null);
+
+  const handleAddRoomClick = (serviceId: string) => {
+      setTargetServiceId(serviceId);
+      setIsAddingRoom(true);
+  };
 
   const handleAddRoom = (name: string, photo?: string) => {
     const newRoom: Room = {
       id: Date.now().toString(),
       name: name,
+      serviceId: targetServiceId, // Linked to specific service
       length: 12, width: 12, height: 8,
       doors: 1, windows: 1,
       defaultCeilingGrade: PaintGrade.Contractor,
@@ -1138,15 +1379,11 @@ const ProjectDetail = ({ project, client, templates, roomNames, branding, onBack
   
   const handleDeleteRoom = (e: React.MouseEvent, roomId: string) => {
       e.stopPropagation();
-      // Removed confirm dialog to ensure UI responsiveness in preview
-      
       const updatedRooms = project.rooms.filter(r => r.id !== roomId);
-      
       const updatedProject = calculateProjectTotals({
           ...project,
           rooms: updatedRooms
       });
-      
       onUpdate(updatedProject);
   };
 
@@ -1170,21 +1407,9 @@ const ProjectDetail = ({ project, client, templates, roomNames, branding, onBack
                   let width = img.width;
                   let height = img.height;
                   const MAX_SIZE = 800;
-                  
-                  if (width > height) {
-                      if (width > MAX_SIZE) {
-                          height *= MAX_SIZE / width;
-                          width = MAX_SIZE;
-                      }
-                  } else {
-                      if (height > MAX_SIZE) {
-                          width *= MAX_SIZE / height;
-                          height = MAX_SIZE;
-                      }
-                  }
-                  
-                  canvas.width = width;
-                  canvas.height = height;
+                  if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } }
+                  else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+                  canvas.width = width; canvas.height = height;
                   const ctx = canvas.getContext('2d');
                   ctx?.drawImage(img, 0, 0, width, height);
                   const photoUrl = canvas.toDataURL('image/jpeg', 0.7);
@@ -1211,6 +1436,7 @@ const ProjectDetail = ({ project, client, templates, roomNames, branding, onBack
             client={client}
             templates={templates} 
             branding={branding}
+            services={services}
             onClose={() => setIsGeneratingPDF(false)} 
           />
       );
@@ -1261,70 +1487,88 @@ const ProjectDetail = ({ project, client, templates, roomNames, branding, onBack
       
        <main className="flex-1 p-4 overflow-y-auto pb-24">
         <div className="flex justify-between items-center mb-4">
-             <h2 className="text-slate-700 font-semibold">Rooms</h2>
+             <h2 className="text-slate-700 font-semibold">Scope of Work</h2>
              <button onClick={() => setIsGeneratingPDF(true)} className="text-sm text-secondary font-medium px-3 py-1 hover:bg-blue-50 rounded flex items-center gap-1">
                  <Icon name="briefcase" className="w-4 h-4"/> Export PDF
              </button>
         </div>
 
-        <div className="space-y-3">
-          {project.rooms.map(room => (
-            <div 
-              key={room.id}
-              onClick={() => onSelectRoom(room)}
-              className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex items-center gap-4 cursor-pointer hover:border-secondary group relative"
-            >
-               <div 
-                   onClick={(e) => handlePhotoClick(e, room.id)}
-                   className="w-12 h-12 rounded bg-slate-100 overflow-hidden shrink-0 cursor-pointer hover:opacity-80 relative group/photo"
-               >
-                   {room.photos && room.photos.length > 0 ? (
-                       <img src={room.photos[0]} alt="" className="w-full h-full object-cover" />
-                   ) : (
-                       <div className="w-full h-full flex items-center justify-center text-slate-300">
-                           <Icon name="camera" className="w-5 h-5" />
-                       </div>
-                   )}
-                   {/* Hint Overlay */}
-                   <div className="absolute inset-0 bg-black/0 group-hover/photo:bg-black/10 transition-colors flex items-center justify-center">
-                       {(!room.photos || room.photos.length === 0) && (
-                           <div className="opacity-0 group-hover/photo:opacity-100">
-                               <Icon name="plus" className="w-3 h-3 text-slate-500" />
-                           </div>
-                       )}
-                   </div>
-               </div>
+        <div className="space-y-8">
+          {services.map(service => {
+              // Logic: Filter rooms for this service. Handle legacy rooms (undefined serviceId) by assigning to first service.
+              const serviceRooms = project.rooms.filter(r => (r.serviceId === service.id) || (!r.serviceId && service.id === services[0].id));
+              const serviceTotal = serviceRooms.reduce((sum, r) => sum + calculateRoomTotal(r), 0);
 
-              <div className="flex-1">
-                <h4 className="font-bold text-slate-800 group-hover:text-blue-600">{room.name}</h4>
-                <p className="text-xs text-slate-500">
-                   {room.items.length} items • {room.length}'x{room.width}'
-                </p>
-              </div>
-              <div className="text-right pr-8">
-                 <span className="block font-semibold text-slate-700">
-                    ${calculateRoomTotal(room).toFixed(0)}
-                 </span>
-              </div>
+              return (
+                  <div key={service.id}>
+                      {/* Service Header Divider */}
+                      <div className="flex justify-between items-center bg-slate-200 px-3 py-2 rounded mb-3">
+                          <span className="font-bold text-slate-700 text-sm uppercase tracking-wider">{service.name}</span>
+                          {serviceTotal > 0 && <span className="font-bold text-slate-600 text-sm">${serviceTotal.toLocaleString(undefined, {minimumFractionDigits: 0})}</span>}
+                      </div>
 
-              {/* Delete Button */}
-              <button 
-                  type="button"
-                  onClick={(e) => handleDeleteRoom(e, room.id)}
-                  className="absolute top-4 right-3 text-slate-300 hover:text-red-500 transition-colors p-1"
-                  title="Delete Room"
-              >
-                  <Icon name="trash" className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-          
-          <button 
-            onClick={() => setIsAddingRoom(true)}
-            className="w-full py-4 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-secondary hover:text-secondary transition-colors flex justify-center items-center gap-2"
-          >
-            <Icon name="plus" className="w-5 h-5" /> Add Room
-          </button>
+                      <div className="space-y-3 pl-1">
+                          {serviceRooms.map(room => (
+                            <div 
+                              key={room.id}
+                              onClick={() => onSelectRoom(room)}
+                              className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex items-center gap-4 cursor-pointer hover:border-secondary group relative"
+                            >
+                               <div 
+                                   onClick={(e) => handlePhotoClick(e, room.id)}
+                                   className="w-12 h-12 rounded bg-slate-100 overflow-hidden shrink-0 cursor-pointer hover:opacity-80 relative group/photo"
+                               >
+                                   {room.photos && room.photos.length > 0 ? (
+                                       <img src={room.photos[0]} alt="" className="w-full h-full object-cover" />
+                                   ) : (
+                                       <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                           <Icon name="camera" className="w-5 h-5" />
+                                       </div>
+                                   )}
+                                   {/* Hint Overlay */}
+                                   <div className="absolute inset-0 bg-black/0 group-hover/photo:bg-black/10 transition-colors flex items-center justify-center">
+                                       {(!room.photos || room.photos.length === 0) && (
+                                           <div className="opacity-0 group-hover/photo:opacity-100">
+                                               <Icon name="plus" className="w-3 h-3 text-slate-500" />
+                                           </div>
+                                       )}
+                                   </div>
+                               </div>
+
+                              <div className="flex-1">
+                                <h4 className="font-bold text-slate-800 group-hover:text-blue-600">{room.name}</h4>
+                                <p className="text-xs text-slate-500">
+                                   {room.items.length} items • {room.length}'x{room.width}'
+                                </p>
+                              </div>
+                              <div className="text-right pr-8">
+                                 <span className="block font-semibold text-slate-700">
+                                    ${calculateRoomTotal(room).toFixed(0)}
+                                 </span>
+                              </div>
+
+                              {/* Delete Button */}
+                              <button 
+                                  type="button"
+                                  onClick={(e) => handleDeleteRoom(e, room.id)}
+                                  className="absolute top-4 right-3 text-slate-300 hover:text-red-500 transition-colors p-1"
+                                  title="Delete Room"
+                              >
+                                  <Icon name="trash" className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                          
+                          <button 
+                            onClick={() => handleAddRoomClick(service.id)}
+                            className="w-full py-3 border border-dashed border-slate-300 rounded-lg text-slate-400 text-sm hover:border-secondary hover:text-secondary transition-colors flex justify-center items-center gap-2"
+                          >
+                            <Icon name="plus" className="w-4 h-4" /> Add {service.name} Area
+                          </button>
+                      </div>
+                  </div>
+              );
+          })}
         </div>
       </main>
 
@@ -1333,17 +1577,26 @@ const ProjectDetail = ({ project, client, templates, roomNames, branding, onBack
         onClose={() => setIsAddingRoom(false)}
         onAdd={handleAddRoom}
         roomNames={roomNames}
+        serviceId={targetServiceId}
+        serviceName={services.find(s => s.id === targetServiceId)?.name || 'Area'}
       />
     </div>
   );
 };
 
-const RoomEditor = ({ room, projectSettings, templates, materials, onSave, onBack }: { room: Room, projectSettings: any, templates: ItemTemplate[], materials: MaterialLine[], onSave: (r: Room) => void, onBack: () => void }) => {
+const RoomEditor = ({ room, projectSettings, templates, materials, services, onSave, onBack }: { room: Room, projectSettings: any, templates: ItemTemplate[], materials: MaterialLine[], services: Service[], onSave: (r: Room) => void, onBack: () => void }) => {
   const [localRoom, setLocalRoom] = useState(room);
   const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [aiPromptText, setAiPromptText] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  // Filter templates to only show those matching the room's service
+  const activeServiceId = room.serviceId || services[0]?.id; // Fallback to first service if legacy
+  const filteredTemplates = templates.filter(t => t.serviceId === activeServiceId);
+  
+  // Filter materials to only show those matching the room's service
+  const filteredMaterials = materials.filter(m => m.serviceId === activeServiceId);
 
   const getUnitLabel = (tplId: string) => {
     const t = templates.find(x => x.id === tplId);
@@ -1551,9 +1804,9 @@ const RoomEditor = ({ room, projectSettings, templates, materials, onSave, onBac
                             className="text-xs bg-blue-50 text-blue-700 rounded px-2 py-2 border-none outline-none font-medium flex-1 min-w-0 truncate"
                         >
                             <option value="" disabled>Select Material</option>
-                            {Array.from(new Set(materials.map(m => m.surfaceCategory))).sort().map(cat => (
+                            {Array.from(new Set(filteredMaterials.map(m => m.surfaceCategory))).sort().map(cat => (
                                 <optgroup key={cat} label={cat.toUpperCase()}>
-                                    {materials
+                                    {filteredMaterials
                                         .filter(m => m.surfaceCategory === cat)
                                         .map(m => (
                                             <option key={m.id} value={m.id}>
@@ -1619,18 +1872,25 @@ const RoomEditor = ({ room, projectSettings, templates, materials, onSave, onBac
       </div>
 
       <div className="border-t bg-surface p-2 overflow-x-auto whitespace-nowrap pb-safe">
-         <div className="flex gap-2 pb-2">
-             {templates.map(tpl => (
-                 <button 
-                    key={tpl.id}
-                    onClick={() => handleAddItem(tpl.id)}
-                    className="inline-flex flex-col items-center justify-center p-3 min-w-[80px] bg-white border border-slate-200 rounded-lg shadow-sm active:scale-95 transition-transform"
-                 >
-                     <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">{tpl.category}</span>
-                     <span className="text-xs font-medium text-slate-800">{tpl.name.split(' ')[0]}</span>
-                 </button>
-             ))}
-         </div>
+         {filteredTemplates.length === 0 ? (
+             <div className="p-4 text-center text-xs text-slate-400">
+                 No templates found for {services.find(s => s.id === activeServiceId)?.name || 'this service'}. <br/>
+                 Check Settings {'>'} Item Templates to add some.
+             </div>
+         ) : (
+             <div className="flex gap-2 pb-2">
+                 {filteredTemplates.map(tpl => (
+                     <button 
+                        key={tpl.id}
+                        onClick={() => handleAddItem(tpl.id)}
+                        className="inline-flex flex-col items-center justify-center p-3 min-w-[80px] bg-white border border-slate-200 rounded-lg shadow-sm active:scale-95 transition-transform"
+                     >
+                         <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">{tpl.category}</span>
+                         <span className="text-xs font-medium text-slate-800">{tpl.name.split(' ')[0]}</span>
+                     </button>
+                 ))}
+             </div>
+         )}
       </div>
     </div>
   );
@@ -1647,20 +1907,24 @@ const App = () => {
   const [roomNames, setRoomNames] = useState<string[]>([]);
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [branding, setBranding] = useState<BrandingSettings | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
   const refresh = async () => {
-    const [p, c, t, m, s, r, b] = await Promise.all([
+    const [p, c, t, m, s, r, b, svcs, cats] = await Promise.all([
       db.projects.toArray(),
       db.clients.toArray(),
       db.templates.toArray(),
       db.materials.toArray(),
       db.settings.get(),
       db.roomNames.toArray(),
-      db.branding.get()
+      db.branding.get(),
+      db.services.toArray(),
+      db.categories.toArray()
     ]);
     setProjects(p.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     setClients(c.sort((a, b) => a.name.localeCompare(b.name)));
@@ -1669,6 +1933,8 @@ const App = () => {
     setSettings(s);
     setRoomNames(r);
     setBranding(b);
+    setServices(svcs);
+    setCategories(cats);
   };
 
   useEffect(() => {
@@ -1740,6 +2006,7 @@ const App = () => {
             projectSettings={selectedProject.settings}
             templates={templates}
             materials={materials}
+            services={services}
             onSave={handleSaveRoom}
             onBack={() => setSelectedRoom(null)}
           />
@@ -1755,6 +2022,7 @@ const App = () => {
              templates={templates}
              roomNames={roomNames}
              branding={branding}
+             services={services}
              onBack={() => setSelectedProject(null)}
              onUpdate={handleUpdateProject}
              onSelectRoom={setSelectedRoom}
@@ -1782,12 +2050,13 @@ const App = () => {
   }
 
   if (view === 'settings' && subView) {
-      if (subView === 'templates') return <TemplatesEditor templates={templates} onUpdate={refresh} onBack={() => setSubView(null)} />;
-      if (subView === 'materials') return <MaterialsEditor materials={materials} onUpdate={refresh} onBack={() => setSubView(null)} />;
+      if (subView === 'templates') return <TemplatesEditor templates={templates} services={services} categories={categories} onUpdate={refresh} onBack={() => setSubView(null)} />;
+      if (subView === 'materials') return <MaterialsEditor materials={materials} categories={categories} services={services} onUpdate={refresh} onBack={() => setSubView(null)} />;
       if (subView === 'labor') return <LaborSettings settings={settings} onSave={async (s) => { await db.settings.save(s); refresh(); }} onBack={() => setSubView(null)} />;
       if (subView === 'roomNames') return <RoomNamesEditor roomNames={roomNames} onUpdate={refresh} onBack={() => setSubView(null)} />;
       if (subView === 'branding') return <BrandingEditor branding={branding} onSave={async (b) => { await db.branding.save(b); refresh(); }} onBack={() => setSubView(null)} />;
-      if (subView === 'data') return <DataManagement onRefresh={refresh} onBack={() => setSubView(null)} />;
+      if (subView === 'data') return <DataManagement services={services} categories={categories} roomNames={roomNames} onUpdate={refresh} onBack={() => setSubView(null)} />;
+      if (subView === 'backup') return <BackupRestore onRefresh={refresh} onBack={() => setSubView(null)} />;
   }
 
   return (

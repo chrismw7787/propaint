@@ -1,4 +1,4 @@
-import { ItemInstance, ItemTemplate, MaterialLine, ProjectSettings, Room, MeasureType, SurfaceCategory, Project } from '../types';
+import { ItemInstance, ItemTemplate, MaterialLine, ProjectSettings, Room, MeasureType, Project } from '../types';
 
 /**
  * Calculates the raw quantity based on room dimensions and item type
@@ -10,16 +10,17 @@ export const calculateQuantity = (room: Room, template: ItemTemplate): number =>
 
   switch (template.measureType) {
     case MeasureType.Area:
-      if (template.category === SurfaceCategory.Walls) return Math.max(0, WallArea);
-      if (template.category === SurfaceCategory.Ceiling) return CeilingArea;
+      if (template.category === 'Walls') return Math.max(0, WallArea);
+      if (template.category === 'Ceiling') return CeilingArea;
+      // For custom categories, default to 0 or maybe WallArea? For now 0 to be safe, user must enter.
       return 0;
     case MeasureType.Length:
       // Baseboards usually P, Crown usually P
       return P; 
     case MeasureType.Count:
       // This is usually manually set, but we can try to infer default counts
-      if (template.category === SurfaceCategory.Doors) return room.doors;
-      if (template.category === SurfaceCategory.Windows) return room.windows;
+      if (template.category === 'Doors') return room.doors;
+      if (template.category === 'Windows') return room.windows;
       return 1;
     default:
       return 1;
@@ -30,7 +31,7 @@ export const calculateQuantity = (room: Room, template: ItemTemplate): number =>
  * Finds the best matching material from the Provided Material List
  */
 export const resolveMaterial = (
-    category: SurfaceCategory, 
+    category: string, 
     grade: string, 
     availableMaterials: MaterialLine[]
 ): MaterialLine | undefined => {

@@ -1,5 +1,5 @@
-import { Project, Client, ItemTemplate, MaterialLine, ProjectSettings, BrandingSettings } from '../types';
-import { DEFAULT_ITEM_TEMPLATES, DEFAULT_MATERIALS, DEFAULT_SETTINGS, DEFAULT_ROOM_NAMES } from '../constants';
+import { Project, Client, ItemTemplate, MaterialLine, ProjectSettings, BrandingSettings, Service } from '../types';
+import { DEFAULT_ITEM_TEMPLATES, DEFAULT_MATERIALS, DEFAULT_SETTINGS, DEFAULT_ROOM_NAMES, DEFAULT_SERVICES, DEFAULT_CATEGORIES } from '../constants';
 
 const KEY_PROJECTS = 'propaint_projects';
 const KEY_CLIENTS = 'propaint_clients';
@@ -8,6 +8,8 @@ const KEY_MATERIALS = 'propaint_materials';
 const KEY_GLOBAL_SETTINGS = 'propaint_global_settings';
 const KEY_BRANDING_SETTINGS = 'propaint_branding_settings';
 const KEY_ROOM_NAMES = 'propaint_room_names';
+const KEY_SERVICES = 'propaint_services';
+const KEY_CATEGORIES = 'propaint_categories';
 
 const ALL_KEYS = {
     projects: KEY_PROJECTS,
@@ -16,7 +18,9 @@ const ALL_KEYS = {
     materials: KEY_MATERIALS,
     globalSettings: KEY_GLOBAL_SETTINGS,
     branding: KEY_BRANDING_SETTINGS,
-    roomNames: KEY_ROOM_NAMES
+    roomNames: KEY_ROOM_NAMES,
+    services: KEY_SERVICES,
+    categories: KEY_CATEGORIES
 };
 
 // Helper for generic local storage CRUD
@@ -44,7 +48,7 @@ const createStore = <T extends { id?: string } | string>(key: string, defaultDat
                 if (index >= 0) list[index] = item;
                 else list.push(item);
             } 
-            // Handle primitive strings (like room names)
+            // Handle primitive strings (like room names, categories)
             else {
                 if (!list.includes(item)) list.push(item);
             }
@@ -74,6 +78,8 @@ export const db = {
   templates: createStore<ItemTemplate>(KEY_TEMPLATES, DEFAULT_ITEM_TEMPLATES),
   materials: createStore<MaterialLine>(KEY_MATERIALS, DEFAULT_MATERIALS),
   roomNames: createStore<string>(KEY_ROOM_NAMES, DEFAULT_ROOM_NAMES),
+  services: createStore<Service>(KEY_SERVICES, DEFAULT_SERVICES),
+  categories: createStore<string>(KEY_CATEGORIES, DEFAULT_CATEGORIES),
   
   settings: {
       get: async (): Promise<ProjectSettings> => {

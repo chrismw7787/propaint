@@ -1,4 +1,4 @@
-import { ItemTemplate, MaterialLine, MeasureType, PaintGrade, PaintSheen, SurfaceCategory } from './types';
+import { ItemTemplate, MaterialLine, MeasureType, PaintGrade, Service } from './types';
 
 export const DEFAULT_SETTINGS = {
   laborRatePerHour: 50,
@@ -6,6 +6,20 @@ export const DEFAULT_SETTINGS = {
   profitPct: 0.20,
   taxRate: 0.0,
 };
+
+export const DEFAULT_SERVICES: Service[] = [
+  { id: 'svc_interior', name: 'Interior' },
+  { id: 'svc_exterior', name: 'Exterior' }
+];
+
+export const DEFAULT_CATEGORIES: string[] = [
+  'Walls',
+  'Ceiling',
+  'Trim',
+  'Doors',
+  'Windows',
+  'Other'
+];
 
 export const DEFAULT_ROOM_NAMES = [
   "Living Room",
@@ -26,7 +40,8 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
   {
     id: 'tpl_walls',
     name: 'Walls (Cut & Roll)',
-    category: SurfaceCategory.Walls,
+    category: 'Walls',
+    serviceId: 'svc_interior',
     measureType: MeasureType.Area,
     defaultCoats: 2,
     defaultWastePct: 0.10,
@@ -37,7 +52,8 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
   {
     id: 'tpl_ceiling',
     name: 'Ceiling (Flat)',
-    category: SurfaceCategory.Ceiling,
+    category: 'Ceiling',
+    serviceId: 'svc_interior',
     measureType: MeasureType.Area,
     defaultCoats: 2,
     defaultWastePct: 0.10,
@@ -48,7 +64,8 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
   {
     id: 'tpl_baseboard',
     name: 'Baseboard Trim',
-    category: SurfaceCategory.Trim,
+    category: 'Trim',
+    serviceId: 'svc_interior',
     measureType: MeasureType.Length,
     defaultCoats: 1,
     defaultWastePct: 0.05,
@@ -59,7 +76,8 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
   {
     id: 'tpl_door_frame',
     name: 'Door Frame',
-    category: SurfaceCategory.Doors,
+    category: 'Doors',
+    serviceId: 'svc_interior',
     measureType: MeasureType.Count,
     defaultCoats: 1,
     defaultWastePct: 0.05,
@@ -70,7 +88,8 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
   {
     id: 'tpl_window_frame',
     name: 'Window Frame/Sill',
-    category: SurfaceCategory.Windows,
+    category: 'Windows',
+    serviceId: 'svc_interior',
     measureType: MeasureType.Count,
     defaultCoats: 1,
     defaultWastePct: 0.05,
@@ -82,14 +101,14 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
 
 export const DEFAULT_MATERIALS: MaterialLine[] = [
   // Walls
-  { id: 'mat_sw_promar200', brand: 'Sherwin-Williams', line: 'ProMar 200', grade: PaintGrade.Contractor, surfaceCategory: SurfaceCategory.Walls, coverageSqft: 350, pricePerGallon: 35 },
-  { id: 'mat_sw_superpaint', brand: 'Sherwin-Williams', line: 'SuperPaint', grade: PaintGrade.Standard, surfaceCategory: SurfaceCategory.Walls, coverageSqft: 350, pricePerGallon: 55 },
-  { id: 'mat_sw_emerald', brand: 'Sherwin-Williams', line: 'Emerald', grade: PaintGrade.Premium, surfaceCategory: SurfaceCategory.Walls, coverageSqft: 400, pricePerGallon: 85 },
+  { id: 'mat_sw_promar200', brand: 'Sherwin-Williams', line: 'ProMar 200', grade: PaintGrade.Contractor, surfaceCategory: 'Walls', serviceId: 'svc_interior', coverageSqft: 350, pricePerGallon: 35 },
+  { id: 'mat_sw_superpaint', brand: 'Sherwin-Williams', line: 'SuperPaint', grade: PaintGrade.Standard, surfaceCategory: 'Walls', serviceId: 'svc_interior', coverageSqft: 350, pricePerGallon: 55 },
+  { id: 'mat_sw_emerald', brand: 'Sherwin-Williams', line: 'Emerald', grade: PaintGrade.Premium, surfaceCategory: 'Walls', serviceId: 'svc_interior', coverageSqft: 400, pricePerGallon: 85 },
   
   // Trim
-  { id: 'mat_bm_advance', brand: 'Benjamin Moore', line: 'Advance', grade: PaintGrade.Premium, surfaceCategory: SurfaceCategory.Trim, coverageSqft: 350, pricePerGallon: 90 },
-  { id: 'mat_sw_solo', brand: 'Sherwin-Williams', line: 'Solo', grade: PaintGrade.Standard, surfaceCategory: SurfaceCategory.Trim, coverageSqft: 350, pricePerGallon: 60 },
+  { id: 'mat_bm_advance', brand: 'Benjamin Moore', line: 'Advance', grade: PaintGrade.Premium, surfaceCategory: 'Trim', serviceId: 'svc_interior', coverageSqft: 350, pricePerGallon: 90 },
+  { id: 'mat_sw_solo', brand: 'Sherwin-Williams', line: 'Solo', grade: PaintGrade.Standard, surfaceCategory: 'Trim', serviceId: 'svc_interior', coverageSqft: 350, pricePerGallon: 60 },
 
   // Ceiling
-  { id: 'mat_sw_chb', brand: 'Sherwin-Williams', line: 'CHB', grade: PaintGrade.Contractor, surfaceCategory: SurfaceCategory.Ceiling, coverageSqft: 300, pricePerGallon: 25 },
+  { id: 'mat_sw_chb', brand: 'Sherwin-Williams', line: 'CHB', grade: PaintGrade.Contractor, surfaceCategory: 'Ceiling', serviceId: 'svc_interior', coverageSqft: 300, pricePerGallon: 25 },
 ];
