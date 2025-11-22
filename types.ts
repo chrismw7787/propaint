@@ -35,6 +35,12 @@ export interface Client {
   notes: string;
 }
 
+export interface AreaName {
+  id: string;
+  name: string;
+  serviceId: string;
+}
+
 export interface MaterialLine {
   id: string;
   brand: string;

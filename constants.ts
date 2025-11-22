@@ -1,4 +1,4 @@
-import { ItemTemplate, MaterialLine, MeasureType, PaintGrade, Service } from './types';
+import { ItemTemplate, MaterialLine, MeasureType, PaintGrade, Service, AreaName } from './types';
 
 export const DEFAULT_SETTINGS = {
   laborRatePerHour: 50,
@@ -21,19 +21,24 @@ export const DEFAULT_CATEGORIES: string[] = [
   'Other'
 ];
 
-export const DEFAULT_ROOM_NAMES = [
-  "Living Room",
-  "Kitchen",
-  "Master Bedroom",
-  "Bedroom 1",
-  "Bedroom 2",
-  "Dining Room",
-  "Hallway",
-  "Entryway",
-  "Bathroom",
-  "Master Bath",
-  "Office",
-  "Garage"
+export const DEFAULT_ROOM_NAMES: AreaName[] = [
+  { id: 'area_living', name: "Living Room", serviceId: 'svc_interior' },
+  { id: 'area_kitchen', name: "Kitchen", serviceId: 'svc_interior' },
+  { id: 'area_master', name: "Master Bedroom", serviceId: 'svc_interior' },
+  { id: 'area_bed1', name: "Bedroom 1", serviceId: 'svc_interior' },
+  { id: 'area_bed2', name: "Bedroom 2", serviceId: 'svc_interior' },
+  { id: 'area_dining', name: "Dining Room", serviceId: 'svc_interior' },
+  { id: 'area_hall', name: "Hallway", serviceId: 'svc_interior' },
+  { id: 'area_entry', name: "Entryway", serviceId: 'svc_interior' },
+  { id: 'area_bath', name: "Bathroom", serviceId: 'svc_interior' },
+  { id: 'area_mbath', name: "Master Bath", serviceId: 'svc_interior' },
+  { id: 'area_office', name: "Office", serviceId: 'svc_interior' },
+  { id: 'area_garage', name: "Garage", serviceId: 'svc_interior' },
+  { id: 'area_ext_front', name: "Front Elevation", serviceId: 'svc_exterior' },
+  { id: 'area_ext_rear', name: "Rear Elevation", serviceId: 'svc_exterior' },
+  { id: 'area_ext_left', name: "Left Side", serviceId: 'svc_exterior' },
+  { id: 'area_ext_right', name: "Right Side", serviceId: 'svc_exterior' },
+  { id: 'area_deck', name: "Deck", serviceId: 'svc_exterior' },
 ];
 
 export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [

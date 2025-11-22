@@ -1,4 +1,4 @@
-import { Project, Client, ItemTemplate, MaterialLine, ProjectSettings, BrandingSettings, Service } from '../types';
+import { Project, Client, ItemTemplate, MaterialLine, ProjectSettings, BrandingSettings, Service, AreaName } from '../types';
 import { DEFAULT_ITEM_TEMPLATES, DEFAULT_MATERIALS, DEFAULT_SETTINGS, DEFAULT_ROOM_NAMES, DEFAULT_SERVICES, DEFAULT_CATEGORIES } from '../constants';
 
 const KEY_PROJECTS = 'propaint_projects';
@@ -44,11 +44,11 @@ const createStore = <T extends { id?: string } | string>(key: string, defaultDat
             
             // Handle objects with IDs
             if (typeof item === 'object' && item !== null && 'id' in item) {
-                const index = list.findIndex((x: any) => x.id === item.id);
+                const index = list.findIndex((x: any) => x.id === (item as any).id);
                 if (index >= 0) list[index] = item;
                 else list.push(item);
             } 
-            // Handle primitive strings (like room names, categories)
+            // Handle primitive strings (legacy support or categories)
             else {
                 if (!list.includes(item)) list.push(item);
             }
@@ -77,7 +77,7 @@ export const db = {
   clients: createStore<Client>(KEY_CLIENTS),
   templates: createStore<ItemTemplate>(KEY_TEMPLATES, DEFAULT_ITEM_TEMPLATES),
   materials: createStore<MaterialLine>(KEY_MATERIALS, DEFAULT_MATERIALS),
-  roomNames: createStore<string>(KEY_ROOM_NAMES, DEFAULT_ROOM_NAMES),
+  roomNames: createStore<AreaName>(KEY_ROOM_NAMES, DEFAULT_ROOM_NAMES),
   services: createStore<Service>(KEY_SERVICES, DEFAULT_SERVICES),
   categories: createStore<string>(KEY_CATEGORIES, DEFAULT_CATEGORIES),
   
