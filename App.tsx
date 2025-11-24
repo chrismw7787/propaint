@@ -47,15 +47,22 @@ const App = () => {
     setSettings(s);
 
     // Migration logic for legacy text-based room names
+    // We must check if migration is needed, perform it, AND SAVE IT immediately
+    // otherwise IDs will regenerate on every reload, breaking deletion.
     let loadedRoomNames = r as any[];
     if (loadedRoomNames.length > 0 && typeof loadedRoomNames[0] === 'string') {
-        loadedRoomNames = loadedRoomNames.map(name => ({
+        const migratedNames = loadedRoomNames.map(name => ({
             id: `area_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
             name: name,
             serviceId: 'svc_interior' // Default fallback
         }));
+        
+        // SAVE the migrated data so IDs persist
+        await db.roomNames.setAll(migratedNames); 
+        setRoomNames(migratedNames);
+    } else {
+        setRoomNames(loadedRoomNames as AreaName[]);
     }
-    setRoomNames(loadedRoomNames as AreaName[]);
 
     setBranding(b);
     setServices(svcs);

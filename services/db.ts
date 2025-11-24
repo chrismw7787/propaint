@@ -23,63 +23,100 @@ const ALL_KEYS = {
     categories: KEY_CATEGORIES
 };
 
-// Helper for generic local storage CRUD
-const createStore = <T extends { id?: string } | string>(key: string, defaultData: T[] = []) => {
+// --- Specialized Stores ---
+
+// 1. Object Store: For items that strictly have an 'id' property (e.g., Projects, Clients, Templates)
+const createObjectStore = <T extends { id: string }>(key: string, defaultData: T[] = []) => {
     return {
         toArray: async (): Promise<T[]> => {
             const raw = localStorage.getItem(key);
             if (!raw) {
-                // Seed default data if empty
                 if (defaultData.length > 0) {
                     localStorage.setItem(key, JSON.stringify(defaultData));
                     return defaultData;
                 }
                 return [];
             }
-            return JSON.parse(raw);
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                console.error(`Error parsing ${key}`, e);
+                return [];
+            }
         },
         put: async (item: T): Promise<void> => {
             const raw = localStorage.getItem(key);
             const list: T[] = raw ? JSON.parse(raw) : [];
+            const index = list.findIndex(x => String(x.id) === String(item.id));
             
-            // Handle objects with IDs
-            if (typeof item === 'object' && item !== null && 'id' in item) {
-                const index = list.findIndex((x: any) => x.id === (item as any).id);
-                if (index >= 0) list[index] = item;
-                else list.push(item);
-            } 
-            // Handle primitive strings (legacy support or categories)
-            else {
-                if (!list.includes(item)) list.push(item);
+            if (index >= 0) {
+                list[index] = item;
+            } else {
+                list.push(item);
             }
-            
             localStorage.setItem(key, JSON.stringify(list));
         },
-        delete: async (idOrValue: string): Promise<void> => {
+        delete: async (id: string): Promise<void> => {
             const raw = localStorage.getItem(key);
             if (!raw) return;
-            const list: any[] = JSON.parse(raw);
-            
-            let filtered;
-            if (list.length > 0 && typeof list[0] === 'string') {
-                filtered = list.filter(x => x !== idOrValue);
-            } else {
-                filtered = list.filter(x => x.id !== idOrValue);
-            }
-            
+            const list: T[] = JSON.parse(raw);
+            // Strict ID filtering
+            const filtered = list.filter(x => String(x.id) !== String(id));
             localStorage.setItem(key, JSON.stringify(filtered));
+        },
+        setAll: async (items: T[]): Promise<void> => {
+            localStorage.setItem(key, JSON.stringify(items));
+        }
+    };
+};
+
+// 2. Value Store: For simple string lists (e.g., Categories)
+const createValueStore = (key: string, defaultData: string[] = []) => {
+    return {
+        toArray: async (): Promise<string[]> => {
+            const raw = localStorage.getItem(key);
+            if (!raw) {
+                if (defaultData.length > 0) {
+                    localStorage.setItem(key, JSON.stringify(defaultData));
+                    return defaultData;
+                }
+                return [];
+            }
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                return [];
+            }
+        },
+        put: async (item: string): Promise<void> => {
+            const raw = localStorage.getItem(key);
+            const list: string[] = raw ? JSON.parse(raw) : [];
+            if (!list.includes(item)) {
+                list.push(item);
+                localStorage.setItem(key, JSON.stringify(list));
+            }
+        },
+        delete: async (value: string): Promise<void> => {
+            const raw = localStorage.getItem(key);
+            if (!raw) return;
+            const list: string[] = JSON.parse(raw);
+            const filtered = list.filter(x => x !== value);
+            localStorage.setItem(key, JSON.stringify(filtered));
+        },
+        setAll: async (items: string[]): Promise<void> => {
+            localStorage.setItem(key, JSON.stringify(items));
         }
     };
 };
 
 export const db = {
-  projects: createStore<Project>(KEY_PROJECTS),
-  clients: createStore<Client>(KEY_CLIENTS),
-  templates: createStore<ItemTemplate>(KEY_TEMPLATES, DEFAULT_ITEM_TEMPLATES),
-  materials: createStore<MaterialLine>(KEY_MATERIALS, DEFAULT_MATERIALS),
-  roomNames: createStore<AreaName>(KEY_ROOM_NAMES, DEFAULT_ROOM_NAMES),
-  services: createStore<Service>(KEY_SERVICES, DEFAULT_SERVICES),
-  categories: createStore<string>(KEY_CATEGORIES, DEFAULT_CATEGORIES),
+  projects: createObjectStore<Project>(KEY_PROJECTS),
+  clients: createObjectStore<Client>(KEY_CLIENTS),
+  templates: createObjectStore<ItemTemplate>(KEY_TEMPLATES, DEFAULT_ITEM_TEMPLATES),
+  materials: createObjectStore<MaterialLine>(KEY_MATERIALS, DEFAULT_MATERIALS),
+  roomNames: createObjectStore<AreaName>(KEY_ROOM_NAMES, DEFAULT_ROOM_NAMES),
+  services: createObjectStore<Service>(KEY_SERVICES, DEFAULT_SERVICES),
+  categories: createValueStore(KEY_CATEGORIES, DEFAULT_CATEGORIES),
   
   settings: {
       get: async (): Promise<ProjectSettings> => {
@@ -118,7 +155,6 @@ export const db = {
       },
       import: async (jsonString: string): Promise<void> => {
           const data = JSON.parse(jsonString);
-          // Basic validation and restore
           for (const [key, storageKey] of Object.entries(ALL_KEYS)) {
               if (data[key]) {
                   localStorage.setItem(storageKey, JSON.stringify(data[key]));
