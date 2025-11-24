@@ -190,6 +190,9 @@ export const DataManagement = ({ services, categories, onUpdate, onBack }: { ser
         if (editing) setEditing(null);
         else onBack();
     }
+    
+    const sortedServices = [...services].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedCategories = [...categories].sort((a, b) => a.localeCompare(b));
 
     return (
         <div className="h-full flex flex-col bg-slate-50">
@@ -234,7 +237,7 @@ export const DataManagement = ({ services, categories, onUpdate, onBack }: { ser
                     </div>
                 ) : (
                     <>
-                        {activeTab === 'services' && services.map(s => (
+                        {activeTab === 'services' && sortedServices.map(s => (
                             <SettingsListItem 
                                 key={s.id}
                                 title={s.name}
@@ -242,7 +245,7 @@ export const DataManagement = ({ services, categories, onUpdate, onBack }: { ser
                                 onDelete={() => handleDelete(s.id, s.name)}
                             />
                         ))}
-                        {activeTab === 'categories' && categories.map(c => (
+                        {activeTab === 'categories' && sortedCategories.map(c => (
                             <SettingsListItem 
                                 key={c}
                                 title={c}
@@ -395,7 +398,8 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
     };
 
     const filteredTemplates = templates
-        .filter(t => selectedServiceId === 'all' || t.serviceId === selectedServiceId);
+        .filter(t => selectedServiceId === 'all' || t.serviceId === selectedServiceId)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     return (
         <div className="h-full flex flex-col bg-slate-50">
@@ -510,9 +514,10 @@ export const MaterialsEditor = ({ materials, categories, services, onUpdate, onB
     const [editing, setEditing] = useState<Partial<MaterialLine> | null>(null);
     const [selectedServiceId, setSelectedServiceId] = useState<string>('all');
 
-    const filteredMaterials = selectedServiceId === 'all' 
+    const filteredMaterials = (selectedServiceId === 'all' 
         ? materials 
-        : materials.filter(m => m.serviceId === selectedServiceId);
+        : materials.filter(m => m.serviceId === selectedServiceId))
+        .sort((a, b) => a.line.localeCompare(b.line));
 
     const handleSave = async () => {
         if(!editing || !editing.line) return;
