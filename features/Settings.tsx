@@ -436,12 +436,16 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
                             </select>
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase">Prod (hr/unit)</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Prod (units/hr)</label>
                             <input 
                                 type="number" 
                                 className="w-full p-2 border rounded bg-white" 
-                                value={editingItem.productivityMinutesPerUnit ? editingItem.productivityMinutesPerUnit / 60 : 0} 
-                                onChange={e => setEditingItem({...editingItem, productivityMinutesPerUnit: parseFloat(e.target.value) * 60})} 
+                                placeholder="e.g. 150"
+                                value={editingItem.productivityMinutesPerUnit ? Math.round(60 / editingItem.productivityMinutesPerUnit) : ''} 
+                                onChange={e => {
+                                    const val = parseFloat(e.target.value);
+                                    setEditingItem({...editingItem, productivityMinutesPerUnit: val > 0 ? 60 / val : 0});
+                                }} 
                             />
                         </div>
                     </div>
