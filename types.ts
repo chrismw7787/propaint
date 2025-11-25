@@ -65,7 +65,8 @@ export interface ItemTemplate {
   calculationLogic: CalculationLogic; // Determines which room dimension formula to use
   defaultCoats: number;
   defaultWastePct: number;
-  productivityMinutesPerUnit: number; // e.g., mins per sqft
+  productivityMinutesPerUnit: number; // Base rate (1st coat + prep)
+  productivityMinutesPerUnitAdditional?: number; // Rate for 2nd+ coats (usually faster)
   defaultGrade: PaintGrade;
   description?: string; // Scope of work description
 }

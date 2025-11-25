@@ -102,8 +102,23 @@ export const calculateItemCost = (
   const calculatedMaterialCost = gallons * pricePerGallon;
 
   // 2. Resolve Labor Cost
-  // Minutes = Qty * MinsPerUnit
-  const totalMinutes = item.quantity * template.productivityMinutesPerUnit * item.coats;
+  const baseRate = template.productivityMinutesPerUnit;
+  // If additional rate is not set, use base rate
+  const additionalRate = template.productivityMinutesPerUnitAdditional !== undefined 
+      ? template.productivityMinutesPerUnitAdditional 
+      : baseRate;
+  
+  let totalMinutes = 0;
+  if (item.coats > 0) {
+      // First coat covers Prep + Paint
+      totalMinutes += item.quantity * baseRate;
+      
+      // Subsequent coats are usually faster
+      if (item.coats > 1) {
+          totalMinutes += item.quantity * additionalRate * (item.coats - 1);
+      }
+  }
+
   const totalHours = totalMinutes / 60;
   const calculatedLaborCost = totalHours * settings.laborRatePerHour;
 

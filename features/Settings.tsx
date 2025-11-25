@@ -376,6 +376,7 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
             defaultCoats: editingItem.defaultCoats || 2,
             defaultWastePct: editingItem.defaultWastePct || 0.1,
             productivityMinutesPerUnit: editingItem.productivityMinutesPerUnit || 10,
+            productivityMinutesPerUnitAdditional: editingItem.productivityMinutesPerUnitAdditional, // Optional new field
             defaultGrade: editingItem.defaultGrade || PaintGrade.Standard,
             description: editingItem.description || ''
         } as ItemTemplate);
@@ -411,7 +412,7 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
     const getProductionRateDisplay = (minsPerUnit: number | undefined) => {
         if (!minsPerUnit || minsPerUnit <= 0) return '0';
         const unitsPerHour = 60 / minsPerUnit;
-        return unitsPerHour.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        return unitsPerHour.toLocaleString(undefined, { maximumFractionDigits: 0 });
     };
 
     return (
@@ -464,19 +465,19 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
                         </div>
                     </div>
 
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-3 gap-3">
                          <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase">Measure Type</label>
-                            <select className="w-full p-2 border rounded bg-white" value={editingItem.measureType} onChange={e => setEditingItem({...editingItem, measureType: e.target.value as MeasureType})}>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Measure</label>
+                            <select className="w-full p-2 border rounded bg-white text-xs" value={editingItem.measureType} onChange={e => setEditingItem({...editingItem, measureType: e.target.value as MeasureType})}>
                                 {(Object.values(MeasureType) as string[]).map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase">Prod (units/hr)</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase">1st Coat (units/hr)</label>
                             <input 
                                 type="number" 
-                                step="0.01"
-                                className="w-full p-2 border rounded bg-white" 
+                                step="1"
+                                className="w-full p-2 border rounded bg-white text-xs" 
                                 placeholder="e.g. 150"
                                 value={editingItem.productivityMinutesPerUnit ? (Math.round((60 / editingItem.productivityMinutesPerUnit) * 100) / 100) : ''} 
                                 onChange={e => {
@@ -484,6 +485,22 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
                                     setEditingItem({...editingItem, productivityMinutesPerUnit: val > 0 ? 60 / val : 0});
                                 }} 
                             />
+                            <div className="text-[9px] text-slate-400 leading-tight mt-1">Includes Prep</div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Add'l (units/hr)</label>
+                            <input 
+                                type="number" 
+                                step="1"
+                                className="w-full p-2 border rounded bg-white text-xs" 
+                                placeholder="e.g. 300"
+                                value={editingItem.productivityMinutesPerUnitAdditional ? (Math.round((60 / editingItem.productivityMinutesPerUnitAdditional) * 100) / 100) : ''} 
+                                onChange={e => {
+                                    const val = parseFloat(e.target.value);
+                                    setEditingItem({...editingItem, productivityMinutesPerUnitAdditional: val > 0 ? 60 / val : undefined});
+                                }} 
+                            />
+                            <div className="text-[9px] text-slate-400 leading-tight mt-1">Faster?</div>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -529,7 +546,7 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
                                 <SettingsListItem 
                                     key={t.id}
                                     title={t.name}
-                                    subtitle={`${t.category} • ${t.measureType} • ${getProductionRateDisplay(t.productivityMinutesPerUnit)} units/hr`}
+                                    subtitle={`${t.category} • ${t.measureType} • Base: ${getProductionRateDisplay(t.productivityMinutesPerUnit)} / Add'l: ${getProductionRateDisplay(t.productivityMinutesPerUnitAdditional || t.productivityMinutesPerUnit)} hr`}
                                     badge={services.find(s => s.id === t.serviceId)?.name}
                                     onEdit={() => setEditingItem(t)}
                                     onDelete={() => handleDelete(t.id, t.name)}

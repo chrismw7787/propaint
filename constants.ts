@@ -52,7 +52,8 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     calculationLogic: 'wall_area',
     defaultCoats: 2,
     defaultWastePct: 0.10,
-    productivityMinutesPerUnit: 0.05, // ~3 secs per sqft
+    productivityMinutesPerUnit: 0.05, // 1st coat: ~1200 sqft/hr (inc prep)
+    productivityMinutesPerUnitAdditional: 0.03, // 2nd coat: ~2000 sqft/hr
     defaultGrade: PaintGrade.Standard,
     description: "Scrape loose paint, patch minor holes/cracks, sand smooth, spot prime repairs, and apply two coats of finish paint."
   },
@@ -65,7 +66,8 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     calculationLogic: 'ceiling_area',
     defaultCoats: 2,
     defaultWastePct: 0.10,
-    productivityMinutesPerUnit: 0.06,
+    productivityMinutesPerUnit: 0.06, // 1st coat: ~1000 sqft/hr
+    productivityMinutesPerUnitAdditional: 0.04, // 2nd coat: ~1500 sqft/hr
     defaultGrade: PaintGrade.Contractor,
     description: "Mask walls and floors. Apply two coats of flat ceiling paint to ensure uniform coverage."
   },
@@ -78,7 +80,8 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     calculationLogic: 'perimeter',
     defaultCoats: 1,
     defaultWastePct: 0.05,
-    productivityMinutesPerUnit: 1.5, // 1.5 mins per LF
+    productivityMinutesPerUnit: 1.5, // 1st coat: 40 LF/hr
+    productivityMinutesPerUnitAdditional: 1.0, // 2nd coat: 60 LF/hr
     defaultGrade: PaintGrade.Premium,
     description: "Caulk gaps, fill nail holes, sand, and apply finish coat to baseboards."
   },
@@ -92,6 +95,7 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     defaultCoats: 1,
     defaultWastePct: 0.05,
     productivityMinutesPerUnit: 20, // 20 mins per door side
+    productivityMinutesPerUnitAdditional: 10, // 10 mins per door side
     defaultGrade: PaintGrade.Premium,
     description: "Prepare surface, sand, and apply finish coat to door casing and jambs."
   },
@@ -105,6 +109,7 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     defaultCoats: 1,
     defaultWastePct: 0.05,
     productivityMinutesPerUnit: 30,
+    productivityMinutesPerUnitAdditional: 15,
     defaultGrade: PaintGrade.Premium,
     description: "Prepare surface, sand, and paint window sash, sill, and casing."
   }
