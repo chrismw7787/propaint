@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Client, Project } from '../types';
 import { db } from '../services/db';
-import { Icon } from '../components/Shared';
+import { Icon, DeleteConfirmButton } from '../components/Shared';
 
 export const ClientForm = ({ initialData, onSave, onCancel }: { initialData: Partial<Client>, onSave: (data: Partial<Client>) => Promise<void>, onCancel: () => void }) => {
     const [data, setData] = useState(initialData);
@@ -65,7 +65,7 @@ export const ClientSelectorModal = ({ clients, onSelect, onCreateNew, onCancel }
     </div>
 );
 
-export const ClientList = ({ clients, onSelect, onRefresh }: { clients: Client[], onSelect: (c: Client) => void, onRefresh: () => void }) => {
+export const ClientList = ({ clients, onSelect, onRefresh, onDelete }: { clients: Client[], onSelect: (c: Client) => void, onRefresh: () => void, onDelete: (id: string) => void }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editingClient, setEditingClient] = useState<Partial<Client>>({});
 
@@ -97,9 +97,16 @@ export const ClientList = ({ clients, onSelect, onRefresh }: { clients: Client[]
 
             <div className="space-y-3">
                 {clients.map(c => (
-                    <div key={c.id} onClick={() => onSelect(c)} className="bg-white p-4 rounded-lg shadow-sm border hover:border-secondary cursor-pointer">
-                        <div className="font-bold text-lg">{c.name}</div>
-                        <div className="text-sm text-slate-500">{c.phone} • {c.email}</div>
+                    <div key={c.id} onClick={() => onSelect(c)} className="bg-white p-4 rounded-lg shadow-sm border hover:border-secondary cursor-pointer group relative">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <div className="font-bold text-lg">{c.name}</div>
+                                <div className="text-sm text-slate-500">{c.phone} • {c.email}</div>
+                            </div>
+                            <div onClick={e => e.stopPropagation()}>
+                                <DeleteConfirmButton onDelete={() => onDelete(c.id)} />
+                            </div>
+                        </div>
                     </div>
                 ))}
             </div>

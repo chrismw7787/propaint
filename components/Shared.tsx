@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // --- Icons ---
 export const Icon = ({ name, className }: { name: string, className?: string }) => {
@@ -38,6 +38,47 @@ export const Icon = ({ name, className }: { name: string, className?: string }) 
         >
             {icons[name] || <circle cx="12" cy="12" r="10" />}
         </svg>
+    );
+};
+
+export const DeleteConfirmButton = ({ onDelete, className }: { onDelete: () => void, className?: string }) => {
+    const [confirming, setConfirming] = useState(false);
+    const timeoutRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, []);
+
+    const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation(); // Vital for lists where rows are clickable
+        
+        if (confirming) {
+            onDelete();
+            setConfirming(false);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        } else {
+            setConfirming(true);
+            timeoutRef.current = window.setTimeout(() => setConfirming(false), 3000);
+        }
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleClick}
+            className={`transition-all flex items-center gap-1 rounded px-2 py-1 ${
+                confirming
+                ? 'bg-red-100 text-red-600'
+                : 'text-slate-300 hover:text-red-500 hover:bg-red-50'
+            } ${className}`}
+            title={confirming ? "Click again to delete" : "Delete"}
+        >
+            <Icon name="trash" className="w-4 h-4 pointer-events-none" />
+            {confirming && <span className="text-xs font-bold whitespace-nowrap animate-in fade-in">Confirm?</span>}
+        </button>
     );
 };
 

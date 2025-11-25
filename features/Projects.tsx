@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Project, Client, ItemTemplate, AreaName, BrandingSettings, Service, Room, PaintGrade, ItemInstance } from '../types';
 import { db } from '../services/db';
-import { Icon } from '../components/Shared';
+import { Icon, DeleteConfirmButton } from '../components/Shared';
 import { calculateProjectTotals, calculateRoomTotal } from '../services/calculationEngine';
 import { ClientSelectorModal } from './Clients';
 import { AddRoomModal } from './Rooms';
@@ -32,13 +31,6 @@ export const ProjectList = ({ projects, clients, onSelect, onCreate, onDelete }:
       setNewClientName('');
       setIsCreatingClient(false);
       setShowClientModal(false);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent, projectId: string) => {
-      e.stopPropagation();
-      if (window.confirm("Are you sure you want to permanently delete this estimate?")) {
-          onDelete(projectId);
-      }
   };
 
   return (
@@ -78,13 +70,7 @@ export const ProjectList = ({ projects, clients, onSelect, onCreate, onDelete }:
                     <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${p.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
                         {p.status.toUpperCase()}
                     </span>
-                    <button 
-                        onClick={(e) => handleDeleteClick(e, p.id)}
-                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                        title="Delete Estimate"
-                    >
-                        <Icon name="trash" className="w-4 h-4" />
-                    </button>
+                    <DeleteConfirmButton onDelete={() => onDelete(p.id)} />
                 </div>
                 </div>
                 <p className="text-sm text-slate-500 mb-4 truncate">{p.address || 'No address'}</p>
