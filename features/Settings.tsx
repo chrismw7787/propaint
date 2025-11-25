@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { AreaName, Service, BrandingSettings, ItemTemplate, MaterialLine, ProjectSettings, PaintGrade, MeasureType } from '../types';
+import { AreaName, Service, BrandingSettings, ItemTemplate, MaterialLine, ProjectSettings, PaintGrade, MeasureType, CalculationLogic } from '../types';
 import { db } from '../services/db';
 import { Icon } from '../components/Shared';
 
@@ -289,6 +290,8 @@ export const AreaNamesEditor = ({ roomNames, services, onUpdate, onBack }: { roo
         else onBack();
     };
 
+    const sortedServices = [...services].sort((a, b) => a.name.localeCompare(b.name));
+
     return (
         <div className="h-full flex flex-col bg-slate-50">
              <SettingsHeader 
@@ -317,7 +320,7 @@ export const AreaNamesEditor = ({ roomNames, services, onUpdate, onBack }: { roo
                             onChange={e => setEditing({...editing, serviceId: e.target.value})}
                         >
                             <option value="" disabled>Select Service</option>
-                            {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            {sortedServices.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
                     <button onClick={handleSave} className="w-full bg-secondary text-white py-3 rounded font-bold">Save Area Name</button>
@@ -331,7 +334,7 @@ export const AreaNamesEditor = ({ roomNames, services, onUpdate, onBack }: { roo
                             onChange={e => setSelectedServiceId(e.target.value)}
                         >
                             <option value="all">All Services</option>
-                            {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            {sortedServices.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
                     <div className="p-4 flex-1 overflow-y-auto">
@@ -369,6 +372,7 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
             category: editingItem.category || categories[0] || 'Other',
             serviceId: editingItem.serviceId || services[0]?.id || 'svc_interior',
             measureType: editingItem.measureType || MeasureType.Count,
+            calculationLogic: editingItem.calculationLogic || 'manual', // Default for new items
             defaultCoats: editingItem.defaultCoats || 2,
             defaultWastePct: editingItem.defaultWastePct || 0.1,
             productivityMinutesPerUnit: editingItem.productivityMinutesPerUnit || 10,
@@ -401,13 +405,22 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
         .filter(t => selectedServiceId === 'all' || t.serviceId === selectedServiceId)
         .sort((a, b) => a.name.localeCompare(b.name));
 
+    const sortedServices = [...services].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedCategories = [...categories].sort((a, b) => a.localeCompare(b));
+
+    const getProductionRateDisplay = (minsPerUnit: number | undefined) => {
+        if (!minsPerUnit || minsPerUnit <= 0) return '0';
+        const unitsPerHour = 60 / minsPerUnit;
+        return unitsPerHour.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    };
+
     return (
         <div className="h-full flex flex-col bg-slate-50">
             <SettingsHeader 
                 title={editingItem ? "Edit Template" : "Item Templates"}
                 onBack={handleBack}
                 showAdd={!editingItem}
-                onAdd={() => setEditingItem({ serviceId: selectedServiceId === 'all' ? services[0]?.id : selectedServiceId })}
+                onAdd={() => setEditingItem({ serviceId: selectedServiceId === 'all' ? services[0]?.id : selectedServiceId, calculationLogic: 'manual', measureType: MeasureType.Count })}
             />
             
             {editingItem ? (
@@ -421,17 +434,36 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
                             <label className="text-xs font-bold text-slate-500 uppercase">Service</label>
                             <select className="w-full p-2 border rounded bg-white" value={editingItem.serviceId || ''} onChange={e => setEditingItem({...editingItem, serviceId: e.target.value})}>
                                 <option value="" disabled>Select Service</option>
-                                {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                {sortedServices.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
                             <select className="w-full p-2 border rounded bg-white" value={editingItem.category || ''} onChange={e => setEditingItem({...editingItem, category: e.target.value})}>
                                 <option value="" disabled>Select Category</option>
-                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                {sortedCategories.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
                     </div>
+                    
+                    {/* Calculation Method Selection - Decoupled from Category */}
+                     <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase">Quantity Calculation</label>
+                        <select 
+                            className="w-full p-2 border rounded bg-white" 
+                            value={editingItem.calculationLogic || 'manual'} 
+                            onChange={e => setEditingItem({...editingItem, calculationLogic: e.target.value as CalculationLogic})}
+                        >
+                            <option value="manual">Manual Input</option>
+                            <option value="wall_area">Net Wall Area (Auto: Perim × H - Openings)</option>
+                            <option value="ceiling_area">Floor/Ceiling Area (Auto: L × W)</option>
+                            <option value="perimeter">Room Perimeter (Auto: 2L + 2W)</option>
+                        </select>
+                        <div className="text-[10px] text-slate-400 mt-1">
+                            Determines how the quantity is automatically derived from room dimensions.
+                        </div>
+                    </div>
+
                      <div className="grid grid-cols-2 gap-4">
                          <div>
                             <label className="text-xs font-bold text-slate-500 uppercase">Measure Type</label>
@@ -484,7 +516,7 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
                             onChange={e => setSelectedServiceId(e.target.value)}
                         >
                             <option value="all">All Services</option>
-                            {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            {sortedServices.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
                     <div className="p-4 flex-1 overflow-y-auto">
@@ -497,7 +529,7 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
                                 <SettingsListItem 
                                     key={t.id}
                                     title={t.name}
-                                    subtitle={`${t.category} • ${t.measureType}`}
+                                    subtitle={`${t.category} • ${t.measureType} • ${getProductionRateDisplay(t.productivityMinutesPerUnit)} units/hr`}
                                     badge={services.find(s => s.id === t.serviceId)?.name}
                                     onEdit={() => setEditingItem(t)}
                                     onDelete={() => handleDelete(t.id, t.name)}
@@ -518,7 +550,11 @@ export const MaterialsEditor = ({ materials, categories, services, onUpdate, onB
     const filteredMaterials = (selectedServiceId === 'all' 
         ? materials 
         : materials.filter(m => m.serviceId === selectedServiceId))
-        .sort((a, b) => a.line.localeCompare(b.line));
+        .sort((a, b) => {
+            const brandCompare = a.brand.localeCompare(b.brand);
+            if (brandCompare !== 0) return brandCompare;
+            return a.line.localeCompare(b.line);
+        });
 
     const handleSave = async () => {
         if(!editing || !editing.line) return;
@@ -554,6 +590,9 @@ export const MaterialsEditor = ({ materials, categories, services, onUpdate, onB
         else onBack();
     };
 
+    const sortedServices = [...services].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedCategories = [...categories].sort((a, b) => a.localeCompare(b));
+
     return (
         <div className="h-full flex flex-col bg-slate-50">
             <SettingsHeader 
@@ -573,14 +612,14 @@ export const MaterialsEditor = ({ materials, categories, services, onUpdate, onB
                             <label className="text-xs font-bold text-slate-500 uppercase">Service</label>
                             <select className="w-full p-2 border rounded bg-white" value={editing.serviceId || ''} onChange={e => setEditing({...editing, serviceId: e.target.value})}>
                                 <option value="" disabled>Select Service</option>
-                                {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                {sortedServices.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase">Category</label>
                             <select className="w-full p-2 border rounded bg-white" value={editing.surfaceCategory || ''} onChange={e => setEditing({...editing, surfaceCategory: e.target.value})}>
                                 <option value="" disabled>Select Category</option>
-                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                {sortedCategories.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
                     </div>
@@ -621,7 +660,7 @@ export const MaterialsEditor = ({ materials, categories, services, onUpdate, onB
                             onChange={e => setSelectedServiceId(e.target.value)}
                         >
                             <option value="all">All Services</option>
-                            {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            {sortedServices.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
                     <div className="p-4 flex-1 overflow-y-auto">

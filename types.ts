@@ -1,3 +1,4 @@
+
 export enum PaintGrade {
   Contractor = 'Contractor',
   Standard = 'Standard',
@@ -20,6 +21,8 @@ export enum MeasureType {
   Count = 'count',
   None = 'none',
 }
+
+export type CalculationLogic = 'manual' | 'wall_area' | 'ceiling_area' | 'perimeter';
 
 export interface Service {
   id: string;
@@ -59,6 +62,7 @@ export interface ItemTemplate {
   category: string;
   serviceId: string; // Link to Service (Interior, Exterior, etc.)
   measureType: MeasureType;
+  calculationLogic: CalculationLogic; // Determines which room dimension formula to use
   defaultCoats: number;
   defaultWastePct: number;
   productivityMinutesPerUnit: number; // e.g., mins per sqft

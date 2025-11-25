@@ -1,3 +1,4 @@
+
 import { ItemInstance, ItemTemplate, MaterialLine, ProjectSettings, Room, MeasureType, Project } from '../types';
 
 /**
@@ -8,23 +9,46 @@ export const calculateQuantity = (room: Room, template: ItemTemplate): number =>
   const WallArea = (P * room.height) - (room.doors * 21) - (room.windows * 15); // Deduct approx sqft for openings
   const CeilingArea = room.length * room.width;
 
-  switch (template.measureType) {
-    case MeasureType.Area:
-      if (template.category === 'Walls') return Math.max(0, WallArea);
-      if (template.category === 'Ceiling') return CeilingArea;
-      // For custom categories, default to 0 or maybe WallArea? For now 0 to be safe, user must enter.
-      return 0;
-    case MeasureType.Length:
-      // Baseboards usually P, Crown usually P
-      return P; 
-    case MeasureType.Count:
-      // This is usually manually set, but we can try to infer default counts
-      if (template.category === 'Doors') return room.doors;
-      if (template.category === 'Windows') return room.windows;
-      return 1;
-    default:
-      return 1;
+  // Use explicit calculation logic if available
+  if (template.calculationLogic) {
+      switch (template.calculationLogic) {
+          case 'wall_area':
+              return Math.max(0, WallArea);
+          case 'ceiling_area':
+              return CeilingArea;
+          case 'perimeter':
+              return P;
+          case 'manual':
+          default:
+               // Fallback to legacy category checks if logic is somehow missing or manual
+               return getDefaultQuantityFromCategory(room, template);
+      }
   }
+
+  // Legacy Fallback (for older templates without calculationLogic)
+  return getDefaultQuantityFromCategory(room, template);
+};
+
+const getDefaultQuantityFromCategory = (room: Room, template: ItemTemplate): number => {
+    // Legacy mapping for backward compatibility
+    if (template.measureType === MeasureType.Area) {
+        if (template.category === 'Walls') {
+             const P = 2 * (room.length + room.width);
+             const WallArea = (P * room.height) - (room.doors * 21) - (room.windows * 15);
+             return Math.max(0, WallArea);
+        }
+        if (template.category === 'Ceiling') return room.length * room.width;
+        return 0;
+    }
+    if (template.measureType === MeasureType.Length) {
+        return 2 * (room.length + room.width); // Assume perimeter for baseboards
+    }
+    if (template.measureType === MeasureType.Count) {
+        if (template.category === 'Doors') return room.doors;
+        if (template.category === 'Windows') return room.windows;
+        return 1;
+    }
+    return 1;
 };
 
 /**

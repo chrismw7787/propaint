@@ -1,3 +1,4 @@
+
 import { ItemTemplate, MaterialLine, MeasureType, PaintGrade, Service, AreaName } from './types';
 
 export const DEFAULT_SETTINGS = {
@@ -48,6 +49,7 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     category: 'Walls',
     serviceId: 'svc_interior',
     measureType: MeasureType.Area,
+    calculationLogic: 'wall_area',
     defaultCoats: 2,
     defaultWastePct: 0.10,
     productivityMinutesPerUnit: 0.05, // ~3 secs per sqft
@@ -60,6 +62,7 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     category: 'Ceiling',
     serviceId: 'svc_interior',
     measureType: MeasureType.Area,
+    calculationLogic: 'ceiling_area',
     defaultCoats: 2,
     defaultWastePct: 0.10,
     productivityMinutesPerUnit: 0.06,
@@ -72,6 +75,7 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     category: 'Trim',
     serviceId: 'svc_interior',
     measureType: MeasureType.Length,
+    calculationLogic: 'perimeter',
     defaultCoats: 1,
     defaultWastePct: 0.05,
     productivityMinutesPerUnit: 1.5, // 1.5 mins per LF
@@ -84,6 +88,7 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     category: 'Doors',
     serviceId: 'svc_interior',
     measureType: MeasureType.Count,
+    calculationLogic: 'manual',
     defaultCoats: 1,
     defaultWastePct: 0.05,
     productivityMinutesPerUnit: 20, // 20 mins per door side
@@ -96,6 +101,7 @@ export const DEFAULT_ITEM_TEMPLATES: ItemTemplate[] = [
     category: 'Windows',
     serviceId: 'svc_interior',
     measureType: MeasureType.Count,
+    calculationLogic: 'manual',
     defaultCoats: 1,
     defaultWastePct: 0.05,
     productivityMinutesPerUnit: 30,
