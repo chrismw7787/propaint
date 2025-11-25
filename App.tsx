@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Project, Room, Client, ItemTemplate, MaterialLine, ProjectSettings, BrandingSettings, Service, AreaName } from './types';
 import { calculateProjectTotals } from './services/calculationEngine';
@@ -99,6 +100,12 @@ const App = () => {
       setSelectedProject(p);
       await refresh();
   };
+
+  const handleDeleteProject = async (projectId: string) => {
+      await db.projects.delete(projectId);
+      if (selectedProject?.id === projectId) setSelectedProject(null);
+      await refresh();
+  };
   
   const handleUpdateClient = async (c: Client) => {
       await db.clients.put(c);
@@ -197,6 +204,7 @@ const App = () => {
                   clients={clients}
                   onSelect={setSelectedProject}
                   onCreate={handleCreateProject}
+                  onDelete={handleDeleteProject}
               />
           )}
 

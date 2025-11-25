@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Project, Client, ItemTemplate, AreaName, BrandingSettings, Service, Room, PaintGrade, ItemInstance } from '../types';
 import { db } from '../services/db';
@@ -6,10 +7,13 @@ import { calculateProjectTotals, calculateRoomTotal } from '../services/calculat
 import { ClientSelectorModal } from './Clients';
 import { AddRoomModal } from './Rooms';
 
-export const ProjectList = ({ projects, clients, onSelect, onCreate }: { projects: Project[], clients: Client[], onSelect: (p: Project) => void, onCreate: (clientId: string) => void }) => {
+export const ProjectList = ({ projects, clients, onSelect, onCreate, onDelete }: { projects: Project[], clients: Client[], onSelect: (p: Project) => void, onCreate: (clientId: string) => void, onDelete: (id: string) => void }) => {
   const [showClientModal, setShowClientModal] = useState(false);
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [newClientName, setNewClientName] = useState('');
+
+  // Hard limit to 5 most recent. Sorting happens in App.tsx before passing here.
+  const displayedProjects = projects.slice(0, 5);
 
   const handleClientSelect = (client: Client) => {
       onCreate(client.id);
@@ -30,12 +34,19 @@ export const ProjectList = ({ projects, clients, onSelect, onCreate }: { project
       setShowClientModal(false);
   };
 
+  const handleDeleteClick = (e: React.MouseEvent, projectId: string) => {
+      e.stopPropagation();
+      if (window.confirm("Are you sure you want to permanently delete this estimate?")) {
+          onDelete(projectId);
+      }
+  };
+
   return (
     <div className="p-6 pb-24 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Estimates</h1>
-          <p className="text-slate-500">Manage your painting projects</p>
+          <h1 className="text-3xl font-bold text-slate-900">Recent Estimates</h1>
+          <p className="text-slate-500">Your latest active projects</p>
         </div>
         <button 
           onClick={() => setShowClientModal(true)}
@@ -46,33 +57,57 @@ export const ProjectList = ({ projects, clients, onSelect, onCreate }: { project
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {projects.map(p => (
-          <div 
-            key={p.id} 
-            onClick={() => onSelect(p)}
-            className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-secondary cursor-pointer transition-all relative"
-          >
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                  <h3 className="font-bold text-lg text-slate-800 leading-tight mb-1">{p.name || 'Untitled Estimate'}</h3>
-                  <div className="text-xs text-slate-500 font-medium">{p.clientName || 'Unknown Client'}</div>
-              </div>
-              <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${p.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                {p.status.toUpperCase()}
-              </span>
+        {displayedProjects.length === 0 ? (
+            <div className="col-span-full text-center py-10 bg-slate-100 rounded-xl border border-dashed border-slate-300">
+                <div className="text-slate-400 mb-2">No estimates yet</div>
+                <button onClick={() => setShowClientModal(true)} className="text-secondary font-bold hover:underline">Create your first estimate</button>
             </div>
-            <p className="text-sm text-slate-500 mb-4 truncate">{p.address || 'No address'}</p>
-            <div className="flex justify-between items-end pt-4 border-t border-slate-100">
-              <div className="text-xs text-slate-400">
-                {new Date(p.createdAt).toLocaleDateString()}
-              </div>
-              <div className="text-xl font-bold text-slate-900">
-                ${p.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </div>
+        ) : (
+            displayedProjects.map(p => (
+            <div 
+                key={p.id} 
+                onClick={() => onSelect(p)}
+                className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-secondary cursor-pointer transition-all relative group"
+            >
+                <div className="flex justify-between items-start mb-2">
+                <div className="pr-8">
+                    <h3 className="font-bold text-lg text-slate-800 leading-tight mb-1">{p.name || 'Untitled Estimate'}</h3>
+                    <div className="text-xs text-slate-500 font-medium">{p.clientName || 'Unknown Client'}</div>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                    <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${p.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {p.status.toUpperCase()}
+                    </span>
+                    <button 
+                        onClick={(e) => handleDeleteClick(e, p.id)}
+                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                        title="Delete Estimate"
+                    >
+                        <Icon name="trash" className="w-4 h-4" />
+                    </button>
+                </div>
+                </div>
+                <p className="text-sm text-slate-500 mb-4 truncate">{p.address || 'No address'}</p>
+                <div className="flex justify-between items-end pt-4 border-t border-slate-100">
+                <div className="text-xs text-slate-400">
+                    {new Date(p.createdAt).toLocaleDateString()}
+                </div>
+                <div className="text-xl font-bold text-slate-900">
+                    ${p.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </div>
+                </div>
             </div>
-          </div>
-        ))}
+            ))
+        )}
       </div>
+
+      {projects.length > 5 && (
+          <div className="text-center mt-8 p-4 bg-slate-100 rounded-lg text-sm text-slate-500">
+              <Icon name="briefcase" className="w-5 h-5 mx-auto mb-2 text-slate-400" />
+              Showing 5 most recent estimates.<br/>
+              To view older history, find the client in the <strong>Clients</strong> tab.
+          </div>
+      )}
 
       {showClientModal && (
           <ClientSelectorModal 
