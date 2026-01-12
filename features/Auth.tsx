@@ -1,15 +1,26 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { authService } from '../services/db';
 import { Icon } from '../components/Shared';
 
 export const LoginScreen = () => {
+  // Listen for redirect results (errors usually show up here)
+  useEffect(() => {
+    authService.handleRedirectResult().catch((e) => {
+        console.error("Auth redirect error caught:", e);
+        if (e.code === 'auth/unauthorized-domain') {
+            alert("Error: This domain is not authorized in your Firebase console.");
+        } else {
+            alert(`Login error: ${e.message}`);
+        }
+    });
+  }, []);
+
   const handleLogin = async () => {
     try {
       await authService.login();
-    } catch (e) {
-      console.error("Login failed", e);
-      alert("Login failed. Please try again.");
+    } catch (e: any) {
+      console.error("Login initiation failed", e);
+      alert(`Could not start login: ${e.message}`);
     }
   };
 

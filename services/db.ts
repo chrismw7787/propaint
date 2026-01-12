@@ -1,6 +1,4 @@
-
 import { initializeApp } from 'firebase/app';
-// Consolidating firestore imports to improve module resolution
 import { 
     getFirestore, 
     collection, 
@@ -16,11 +14,11 @@ import {
 import { 
     getAuth, 
     signInWithRedirect, 
+    getRedirectResult,
     GoogleAuthProvider, 
     signOut, 
     onAuthStateChanged 
 } from 'firebase/auth';
-// Fix: User must be imported as a type in the modular SDK to avoid "no exported member" errors
 import type { User } from 'firebase/auth';
 import { 
     getStorage, 
@@ -41,10 +39,8 @@ const firebaseConfig = {
   appId: "1:574969854880:web:8bd23b4d07002330a182c5"
 };
 
-// Fix: Standard initialization using modular firebase/app
 const app = initializeApp(firebaseConfig);
 
-// Fix: Enable offline persistence using modular initializeFirestore and persistentLocalCache
 const firestore = initializeFirestore(app, {
   localCache: persistentLocalCache()
 });
@@ -55,8 +51,22 @@ const storage = getStorage(app);
 export const authService = {
     login: async () => {
         const provider = new GoogleAuthProvider();
-        // Redirect is significantly more reliable on tablets and mobile devices
-        await signInWithRedirect(auth, provider);
+        // Clear any previous redirect errors before starting
+        try {
+            await signInWithRedirect(auth, provider);
+        } catch (error: any) {
+            console.error("Firebase Login Error:", error);
+            throw error;
+        }
+    },
+    handleRedirectResult: async () => {
+        try {
+            const result = await getRedirectResult(auth);
+            return result;
+        } catch (error: any) {
+            console.error("Redirect Result Error:", error);
+            throw error;
+        }
     },
     logout: async () => {
         await signOut(auth);
