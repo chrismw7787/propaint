@@ -155,3 +155,10 @@ export interface Project {
   totalCost: number;
   totalPrice: number;
 }
+
+// Access Control
+export interface UserProfile {
+  email: string;
+  subscriptionStatus: 'active' | 'inactive' | 'trial';
+  subscriptionExpiry?: string;
+}

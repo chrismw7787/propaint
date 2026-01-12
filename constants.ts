@@ -1,6 +1,12 @@
 
 import { ItemTemplate, MaterialLine, MeasureType, PaintGrade, Service, AreaName } from './types';
 
+// REPLACE THIS WITH YOUR EMAIL ADDRESS
+export const ADMIN_EMAILS = [
+  'baybreezepaintingcompany@gmail.com', 
+  // Add other free-access emails here
+];
+
 export const DEFAULT_SETTINGS = {
   laborRatePerHour: 50,
   overheadPct: 0.10,

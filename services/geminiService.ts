@@ -10,7 +10,7 @@ export const parseRoomDescription = async (description: string): Promise<any> =>
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: `Analyze this paint project room description and extract dimensions and item counts. 
       Description: "${description}".
       If dimensions aren't explicitly stated, estimate reasonable standards for a residential room (e.g., 12x12x9).
@@ -45,7 +45,7 @@ export const suggestColors = async (roomName: string): Promise<string[]> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Suggest 3 trending paint color names for a ${roomName}. Return just a JSON array of strings.`,
             config: {
                 responseMimeType: "application/json",

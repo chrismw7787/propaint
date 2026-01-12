@@ -3,10 +3,12 @@ import { Room, ItemTemplate, MaterialLine, Service, ItemInstance, PaintGrade, Pa
 import { calculateQuantity, calculateItemCost } from '../services/calculationEngine';
 import { parseRoomDescription } from '../services/geminiService';
 import { Icon } from '../components/Shared';
+import { storageService } from '../services/db';
 
 export const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames, serviceId, serviceName }: { isOpen: boolean, onClose: () => void, onAdd: (name: string, photo?: string) => void, roomNames: any[], serviceId: string, serviceName: string }) => {
     const [customName, setCustomName] = useState('');
     const [photo, setPhoto] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
     
     useEffect(() => {
         if(isOpen) {
@@ -17,39 +19,21 @@ export const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames, serviceId, ser
 
     if (!isOpen) return null;
 
-    const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-                    const MAX_SIZE = 800;
-                    
-                    if (width > height) {
-                        if (width > MAX_SIZE) {
-                            height *= MAX_SIZE / width;
-                            width = MAX_SIZE;
-                        }
-                    } else {
-                        if (height > MAX_SIZE) {
-                            width *= MAX_SIZE / height;
-                            height = MAX_SIZE;
-                        }
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx?.drawImage(img, 0, 0, width, height);
-                    setPhoto(canvas.toDataURL('image/jpeg', 0.7));
-                };
-                img.src = ev.target?.result as string;
-            };
-            reader.readAsDataURL(file);
+            setUploading(true);
+            try {
+                // Resize Image logic reused
+                const resizedBlob = await resizeImage(file);
+                const url = await storageService.uploadImage(resizedBlob, `photos/${Date.now()}_${file.name}`);
+                setPhoto(url);
+            } catch (err) {
+                alert("Upload failed. Try again.");
+                console.error(err);
+            } finally {
+                setUploading(false);
+            }
         }
     };
 
@@ -79,24 +63,26 @@ export const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames, serviceId, ser
                                 htmlFor="room-photo-input" 
                                 className="w-16 h-16 bg-slate-100 border border-dashed border-slate-300 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-200"
                             >
-                                {photo ? (
+                                {uploading ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-secondary border-t-transparent"></div>
+                                ) : photo ? (
                                     <img src={photo} alt="Preview" className="w-full h-full object-cover rounded-lg" />
                                 ) : (
                                     <Icon name="camera" className="w-6 h-6 text-slate-400" />
                                 )}
                             </label>
                             <div className="text-xs text-slate-500 flex-1">
-                                Take a photo to distinguish this area (optional).
+                                Take a photo to distinguish this area.
                                 {photo && <button onClick={() => setPhoto(null)} className="block text-red-500 font-bold mt-1">Remove</button>}
                             </div>
                          </div>
                     </div>
 
                     <div className="mb-4">
-                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Quick Select ({filteredNames.length})</label>
+                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Quick Select</label>
                          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                              {filteredNames.length === 0 ? (
-                                <div className="text-xs text-slate-400 italic">No saved names for {serviceName}.</div>
+                                <div className="text-xs text-slate-400 italic">No saved names.</div>
                              ) : (
                                  filteredNames.map(area => (
                                      <button 
@@ -123,10 +109,10 @@ export const AddRoomModal = ({ isOpen, onClose, onAdd, roomNames, serviceId, ser
                             />
                             <button 
                                 onClick={() => customName && onAdd(customName, photo || undefined)}
-                                disabled={!customName}
+                                disabled={!customName || uploading}
                                 className="bg-secondary text-white px-4 rounded font-bold disabled:opacity-50"
                             >
-                                Add
+                                {uploading ? '...' : 'Add'}
                             </button>
                         </div>
                     </div>
@@ -180,7 +166,6 @@ export const RoomEditor = ({ room, projectSettings, templates, materials, servic
           // Merge updates
           const newItemRaw = { ...oldItem, ...updates };
           
-          // If updating materialId, also sync the grade for consistency/fallback logic
           if (updates.materialId) {
              const mat = materials.find(m => m.id === updates.materialId);
              if (mat) {
@@ -188,17 +173,14 @@ export const RoomEditor = ({ room, projectSettings, templates, materials, servic
              }
           }
 
-          // Validate Quantity
           if (updates.quantity !== undefined && (isNaN(updates.quantity) || updates.quantity < 0)) {
               newItemRaw.quantity = 0;
           }
 
-          // Validate Coats
           if (updates.coats !== undefined && (isNaN(updates.coats) || updates.coats < 0)) {
               newItemRaw.coats = 0;
           }
 
-          // Recalculate Cost
           const costedItem = calculateItemCost(newItemRaw, tpl, projectSettings, materials);
           
           const newItems = [...prev.items];
@@ -336,7 +318,6 @@ export const RoomEditor = ({ room, projectSettings, templates, materials, servic
                             </span>
                         </div>
 
-                         {/* Coats Input */}
                         <div className="flex flex-col items-center bg-slate-100 rounded px-1 py-0.5 border border-transparent focus-within:border-secondary shrink-0 w-12">
                             <label className="text-[6px] text-slate-400 uppercase font-bold leading-none">Coats</label>
                             <input 
@@ -349,7 +330,6 @@ export const RoomEditor = ({ room, projectSettings, templates, materials, servic
                             />
                         </div>
 
-                        {/* Material Selector - Replaces generic Grade selector */}
                         <select 
                             value={item.materialId || ''} 
                             onChange={(e) => handleUpdateItem(item.id, { materialId: e.target.value })}
@@ -380,7 +360,6 @@ export const RoomEditor = ({ room, projectSettings, templates, materials, servic
 
                     {expandedItems.has(item.id) && (
                         <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 -mx-3 -mb-3 p-3 rounded-b-lg bg-slate-50">
-                             {/* NEW: Sheen and Color Inputs */}
                              <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-200">
                                  <div>
                                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sheen</label>
@@ -426,8 +405,7 @@ export const RoomEditor = ({ room, projectSettings, templates, materials, servic
       <div className="border-t bg-surface p-2 overflow-x-auto whitespace-nowrap pb-safe">
          {filteredTemplates.length === 0 ? (
              <div className="p-4 text-center text-xs text-slate-400">
-                 No templates found for {services.find(s => s.id === activeServiceId)?.name || 'this service'}. <br/>
-                 Check Settings {'>'} Item Templates to add some.
+                 No templates found for {services.find(s => s.id === activeServiceId)?.name || 'this service'}.
              </div>
          ) : (
              <div className="flex gap-2 pb-2">
@@ -446,4 +424,45 @@ export const RoomEditor = ({ room, projectSettings, templates, materials, servic
       </div>
     </div>
   );
+};
+
+// Helper: Resize before upload to save bandwidth/storage
+const resizeImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_SIZE = 1200; // Good balance for screen view
+                
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    if (blob) resolve(blob);
+                    else reject(new Error("Canvas to Blob failed"));
+                }, 'image/jpeg', 0.8);
+            };
+            img.onerror = reject;
+            img.src = ev.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 };

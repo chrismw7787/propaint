@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { AreaName, Service, BrandingSettings, ItemTemplate, MaterialLine, ProjectSettings, PaintGrade, MeasureType, CalculationLogic } from '../types';
-import { db } from '../services/db';
+import { db, storageService } from '../services/db';
 import { Icon } from '../components/Shared';
 
 export const SettingsMenu = ({ onNavigate }: { onNavigate: (page: string) => void }) => (
@@ -90,19 +90,22 @@ const SettingsHeader = ({ title, onBack, onAdd, showAdd = true }: { title: strin
     </header>
 );
 
+// Define props interface to handle async onDelete and avoid strict key issues
+interface SettingsListItemProps {
+    title: string;
+    subtitle?: string;
+    badge?: string;
+    onEdit?: () => void;
+    onDelete: () => void | Promise<void>;
+}
+
 const SettingsListItem = ({ 
     title, 
     subtitle, 
     badge,
     onEdit, 
     onDelete 
-}: { 
-    title: string, 
-    subtitle?: string, 
-    badge?: string,
-    onEdit?: () => void, 
-    onDelete: () => void 
-}) => {
+}: SettingsListItemProps) => {
     const [confirming, setConfirming] = useState(false);
     const timeoutRef = useRef<number | null>(null);
 
@@ -176,12 +179,9 @@ export const DataManagement = ({ services, categories, onUpdate, onBack }: { ser
     };
 
     const handleDelete = async (idOrValue: string, name: string) => {
-        // Confirmation is now handled by the UI component (SettingsListItem)
         if (activeTab === 'services') {
-            // Services use ObjectStore, delete by ID
             await db.services.delete(idOrValue);
         } else {
-            // Categories use ValueStore, delete by Value
             await db.categories.delete(idOrValue);
         }
         onUpdate();
@@ -447,7 +447,6 @@ export const TemplatesEditor = ({ templates, services, categories, onUpdate, onB
                         </div>
                     </div>
                     
-                    {/* Calculation Method Selection - Decoupled from Category */}
                      <div>
                         <label className="text-xs font-bold text-slate-500 uppercase">Quantity Calculation</label>
                         <select 
@@ -670,7 +669,7 @@ export const MaterialsEditor = ({ materials, categories, services, onUpdate, onB
                  </div>
             ) : (
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-4 py-2 border-b bg-slate-50">
+                     <div className="px-4 py-2 border-b bg-slate-50">
                         <select 
                             className="w-full p-2 border rounded bg-white text-sm" 
                             value={selectedServiceId} 
@@ -681,22 +680,16 @@ export const MaterialsEditor = ({ materials, categories, services, onUpdate, onB
                         </select>
                     </div>
                     <div className="p-4 flex-1 overflow-y-auto">
-                        {filteredMaterials.length === 0 ? (
-                            <div className="text-center text-slate-400 py-10 italic">
-                                No materials found for this service.
-                            </div>
-                        ) : (
-                            filteredMaterials.map(m => (
-                                <SettingsListItem 
-                                    key={m.id}
-                                    title={m.line}
-                                    subtitle={`${m.brand} • ${m.grade} • $${m.pricePerGallon}/gal`}
-                                    badge={services.find(s => s.id === m.serviceId)?.name}
-                                    onEdit={() => setEditing(m)}
-                                    onDelete={() => handleDelete(m.id, m.line)}
-                                />
-                            ))
-                        )}
+                        {filteredMaterials.map(m => (
+                            <SettingsListItem 
+                                key={m.id}
+                                title={`${m.brand} ${m.line}`}
+                                subtitle={`${m.surfaceCategory} • ${m.grade} • $${m.pricePerGallon}/gal`}
+                                badge={services.find(s => s.id === m.serviceId)?.name}
+                                onEdit={() => setEditing(m)}
+                                onDelete={() => handleDelete(m.id, m.line)}
+                            />
+                        ))}
                     </div>
                 </div>
             )}
@@ -704,213 +697,188 @@ export const MaterialsEditor = ({ materials, categories, services, onUpdate, onB
     );
 };
 
-export const BackupRestore = ({ onBack, onRefresh }: { onBack: () => void, onRefresh: () => void }) => {
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleExport = async () => {
-        const json = await db.backup.export();
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `propaint_backup_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    };
-
-    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            try {
-                const json = ev.target?.result as string;
-                await db.backup.import(json);
-                alert("Data restored successfully!");
-                onRefresh();
-            } catch (err) {
-                alert("Failed to restore data. Invalid file.");
-            }
-            if (fileInputRef.current) fileInputRef.current.value = '';
-        };
-        reader.readAsText(file);
-    };
+export const LaborSettings = ({ settings, onSave, onBack }: { settings: ProjectSettings, onSave: (s: ProjectSettings) => void, onBack: () => void }) => {
+    const [data, setData] = useState(settings);
 
     return (
         <div className="h-full flex flex-col bg-slate-50">
-            <header className="bg-white p-4 border-b flex items-center gap-4">
-                <button onClick={onBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
-                <h1 className="font-bold text-lg">Backup & Restore</h1>
-            </header>
-            <div className="p-6 space-y-6">
-                 <div className="bg-white p-6 rounded-lg border border-blue-200 shadow-sm">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="bg-blue-100 p-3 rounded-full text-secondary">
-                            <Icon name="database" className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg">Local Storage</h3>
-                            <p className="text-sm text-slate-500">Your data is automatically saved to this tablet.</p>
-                        </div>
-                    </div>
+            <SettingsHeader title="Labor & Pricing" onBack={onBack} showAdd={false} />
+            <div className="p-4 space-y-6">
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Labor Rate ($/hr)</label>
+                    <input className="w-full p-3 border rounded text-lg font-bold" type="number" value={data.laborRatePerHour} onChange={e => setData({...data, laborRatePerHour: parseFloat(e.target.value)})} />
                 </div>
-
-                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="bg-slate-100 p-3 rounded-full text-slate-600">
-                            <Icon name="download" className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg">Backup Data</h3>
-                            <p className="text-sm text-slate-500">Download a snapshot of your data to a file.</p>
-                        </div>
-                    </div>
-                    <button onClick={handleExport} className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg">Download Backup (.json)</button>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Overhead % (0.10 = 10%)</label>
+                    <input className="w-full p-3 border rounded text-lg font-bold" type="number" step="0.01" value={data.overheadPct} onChange={e => setData({...data, overheadPct: parseFloat(e.target.value)})} />
                 </div>
-
-                <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="bg-orange-100 p-3 rounded-full text-orange-600">
-                            <Icon name="upload" className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg">Restore Data</h3>
-                            <p className="text-sm text-slate-500">Load a previously saved backup file. This will overwrite current data.</p>
-                        </div>
-                    </div>
-                    <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
-                    <button onClick={() => fileInputRef.current?.click()} className="w-full py-3 bg-slate-100 text-slate-800 font-bold rounded-lg hover:bg-slate-200 border border-slate-300">Select Backup File</button>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Profit % (0.20 = 20%)</label>
+                    <input className="w-full p-3 border rounded text-lg font-bold" type="number" step="0.01" value={data.profitPct} onChange={e => setData({...data, profitPct: parseFloat(e.target.value)})} />
                 </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Tax Rate % (0.08 = 8%)</label>
+                    <input className="w-full p-3 border rounded text-lg font-bold" type="number" step="0.001" value={data.taxRate} onChange={e => setData({...data, taxRate: parseFloat(e.target.value)})} />
+                </div>
+                <button onClick={() => onSave(data)} className="w-full bg-secondary text-white py-3 rounded font-bold">Save Settings</button>
             </div>
         </div>
     );
 };
 
 export const BrandingEditor = ({ branding, onSave, onBack }: { branding: BrandingSettings, onSave: (b: BrandingSettings) => void, onBack: () => void }) => {
-    const [local, setLocal] = useState(branding);
+    const [data, setData] = useState(branding);
+    const [uploading, setUploading] = useState(false);
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: keyof BrandingSettings) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-                    const MAX_SIZE = 800;
-                    if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } }
-                    else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
-                    canvas.width = width; canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx?.drawImage(img, 0, 0, width, height);
-                    setLocal(prev => ({ ...prev, [field]: canvas.toDataURL('image/jpeg', 0.8) }));
-                };
-                img.src = ev.target?.result as string;
-            };
-            reader.readAsDataURL(file);
+    const handleImageUpload = async (file: File, field: keyof BrandingSettings) => {
+        setUploading(true);
+        try {
+             // Basic check - in real app, use resize utility
+            const url = await storageService.uploadImage(file, `branding/${Date.now()}_${file.name}`);
+            setData(prev => ({ ...prev, [field]: url }));
+        } catch (e) {
+            console.error(e);
+            alert("Upload failed.");
+        } finally {
+            setUploading(false);
         }
     };
 
     return (
         <div className="h-full flex flex-col bg-slate-50">
-            <header className="bg-white p-4 border-b flex items-center gap-4">
-                <button onClick={onBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
-                <h1 className="font-bold text-lg">Branding</h1>
-            </header>
-            <div className="p-4 space-y-6 flex-1 overflow-y-auto pb-24">
+            <SettingsHeader title="Branding" onBack={onBack} showAdd={false} />
+            <div className="p-4 space-y-6 flex-1 overflow-y-auto">
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Business Name</label>
+                    <input className="w-full p-3 border rounded" value={data.businessName} onChange={e => setData({...data, businessName: e.target.value})} />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Contact Info (Address, Phone, etc)</label>
+                    <textarea className="w-full p-3 border rounded" rows={4} value={data.contactInfo} onChange={e => setData({...data, contactInfo: e.target.value})} />
+                </div>
                 
-                <div className="bg-white p-4 rounded border">
-                    <h3 className="font-bold mb-3">Business Info</h3>
-                    <label className="block text-xs text-slate-500 uppercase font-bold mb-1">Business Name</label>
-                    <input className="w-full p-2 border rounded mb-3" value={local.businessName} onChange={e => setLocal({...local, businessName: e.target.value})} />
-                    <label className="block text-xs text-slate-500 uppercase font-bold mb-1">Contact Info (Address, Phone, Email)</label>
-                    <textarea className="w-full p-2 border rounded" rows={4} value={local.contactInfo} onChange={e => setLocal({...local, contactInfo: e.target.value})} />
-                </div>
-
-                <div className="bg-white p-4 rounded border">
-                    <h3 className="font-bold mb-3">Logos</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs text-slate-500 uppercase font-bold mb-2">Square (1:1)</label>
-                            <label className="block aspect-square bg-slate-100 border-dashed border-2 border-slate-300 rounded flex items-center justify-center cursor-pointer hover:bg-slate-200 relative overflow-hidden">
-                                <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'squareLogo')} />
-                                {local.squareLogo ? <img src={local.squareLogo} className="w-full h-full object-contain" /> : <span className="text-xs text-slate-400">Upload</span>}
-                                {local.squareLogo && <div className="absolute inset-0 hover:bg-black/20 flex items-center justify-center"><span className="bg-white/80 px-2 py-1 rounded text-xs shadow opacity-0 hover:opacity-100">Change</span></div>}
-                            </label>
-                            {local.squareLogo && <button onClick={() => setLocal({...local, squareLogo: undefined})} className="text-red-500 text-xs mt-1">Remove</button>}
+                <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Square Logo</label>
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:bg-slate-100 relative">
+                             {data.squareLogo ? (
+                                 <img src={data.squareLogo} className="w-20 h-20 mx-auto object-contain mb-2" alt="Square Logo"/>
+                             ) : <div className="w-20 h-20 mx-auto bg-slate-200 rounded mb-2" />}
+                             <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'squareLogo')} />
+                             <div className="text-xs text-secondary font-bold">{uploading ? '...' : 'Upload'}</div>
                         </div>
-                        <div>
-                            <label className="block text-xs text-slate-500 uppercase font-bold mb-2">Horizontal</label>
-                            <label className="block aspect-video bg-slate-100 border-dashed border-2 border-slate-300 rounded flex items-center justify-center cursor-pointer hover:bg-slate-200 relative overflow-hidden">
-                                <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'horizontalLogo')} />
-                                {local.horizontalLogo ? <img src={local.horizontalLogo} className="w-full h-full object-contain" /> : <span className="text-xs text-slate-400">Upload</span>}
-                            </label>
-                            {local.horizontalLogo && <button onClick={() => setLocal({...local, horizontalLogo: undefined})} className="text-red-500 text-xs mt-1">Remove</button>}
+                    </div>
+                     <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Horizontal Logo</label>
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:bg-slate-100 relative">
+                             {data.horizontalLogo ? (
+                                 <img src={data.horizontalLogo} className="w-full h-12 mx-auto object-contain mb-2" alt="Horiz Logo"/>
+                             ) : <div className="w-full h-12 mx-auto bg-slate-200 rounded mb-2" />}
+                             <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'horizontalLogo')} />
+                             <div className="text-xs text-secondary font-bold">{uploading ? '...' : 'Upload'}</div>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white p-4 rounded border">
-                    <h3 className="font-bold mb-3">Marketing / Reviews</h3>
-                    <div className="flex gap-4 items-start">
-                         <div className="w-1/3">
-                            <label className="block text-xs text-slate-500 uppercase font-bold mb-2">QR Code</label>
-                            <label className="block aspect-square bg-slate-100 border-dashed border-2 border-slate-300 rounded flex items-center justify-center cursor-pointer hover:bg-slate-200 overflow-hidden">
-                                <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'qrCode')} />
-                                {local.qrCode ? <img src={local.qrCode} className="w-full h-full object-cover" /> : <span className="text-xs text-slate-400">Upload</span>}
-                            </label>
-                            {local.qrCode && <button onClick={() => setLocal({...local, qrCode: undefined})} className="text-red-500 text-xs mt-1">Remove</button>}
-                         </div>
-                         <div className="flex-1">
-                            <label className="block text-xs text-slate-500 uppercase font-bold mb-1">Review Blurb / Key Features</label>
-                            <textarea className="w-full p-2 border rounded text-sm" rows={5} value={local.reviewBlurb} onChange={e => setLocal({...local, reviewBlurb: e.target.value})} placeholder="Check out what your neighbors are saying about us..." />
-                         </div>
-                    </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Review/QR Code Image</label>
+                     <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:bg-slate-100 relative">
+                             {data.qrCode ? (
+                                 <img src={data.qrCode} className="w-32 h-32 mx-auto object-contain mb-2" alt="QR"/>
+                             ) : <div className="w-32 h-32 mx-auto bg-slate-200 rounded mb-2" />}
+                             <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'qrCode')} />
+                             <div className="text-xs text-secondary font-bold">{uploading ? '...' : 'Upload QR Code'}</div>
+                        </div>
                 </div>
 
-                <button onClick={() => { onSave(local); onBack(); }} className="w-full bg-secondary text-white py-3 rounded font-bold text-lg">Save Branding</button>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Review Blurb</label>
+                    <textarea className="w-full p-3 border rounded" rows={2} value={data.reviewBlurb} onChange={e => setData({...data, reviewBlurb: e.target.value})} placeholder="Check us out on Google..." />
+                </div>
+
+                <button onClick={() => onSave(data)} className="w-full bg-secondary text-white py-3 rounded font-bold">Save Branding</button>
             </div>
         </div>
     );
 };
 
-export const LaborSettings = ({ settings, onSave, onBack }: { settings: ProjectSettings, onSave: (s: ProjectSettings) => void, onBack: () => void }) => {
-    const [local, setLocal] = useState(settings);
+export const BackupRestore = ({ onRefresh, onBack }: { onRefresh: () => void, onBack: () => void }) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [loading, setLoading] = useState(false);
 
-    const handleSave = () => {
-        onSave(local);
-        onBack();
+    const handleExport = async () => {
+        setLoading(true);
+        try {
+            const json = await db.backup.export();
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `propaint_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            alert("Export failed.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        if (!confirm("WARNING: Importing will OVERWRITE your current data with the data in this file. Are you sure?")) {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
+        setLoading(true);
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            try {
+                const json = ev.target?.result as string;
+                await db.backup.import(json);
+                alert("Import successful!");
+                onRefresh();
+            } catch (err) {
+                console.error(err);
+                alert("Import failed. Invalid file.");
+            } finally {
+                setLoading(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+        };
+        reader.readAsText(file);
     };
 
     return (
         <div className="h-full flex flex-col bg-slate-50">
-            <header className="bg-white p-4 border-b flex items-center gap-4">
-                <button onClick={onBack}><Icon name="chevronLeft" className="w-6 h-6" /></button>
-                <h1 className="font-bold text-lg">Labor & Pricing</h1>
-            </header>
-            <div className="p-4 space-y-4">
-                 <div>
-                     <label className="block text-sm font-bold text-slate-700 mb-1">Labor Rate ($/hr)</label>
-                     <input type="number" className="w-full p-3 border rounded" value={local.laborRatePerHour} onChange={e => setLocal({...local, laborRatePerHour: parseFloat(e.target.value)})} />
-                 </div>
-                 <div>
-                     <label className="block text-sm font-bold text-slate-700 mb-1">Overhead % (0.10 = 10%)</label>
-                     <input type="number" step="0.01" className="w-full p-3 border rounded" value={local.overheadPct} onChange={e => setLocal({...local, overheadPct: parseFloat(e.target.value)})} />
-                 </div>
-                 <div>
-                     <label className="block text-sm font-bold text-slate-700 mb-1">Profit % (0.20 = 20%)</label>
-                     <input type="number" step="0.01" className="w-full p-3 border rounded" value={local.profitPct} onChange={e => setLocal({...local, profitPct: parseFloat(e.target.value)})} />
-                 </div>
-                 <div>
-                     <label className="block text-sm font-bold text-slate-700 mb-1">Tax Rate % (0.08 = 8%)</label>
-                     <input type="number" step="0.01" className="w-full p-3 border rounded" value={local.taxRate} onChange={e => setLocal({...local, taxRate: parseFloat(e.target.value)})} />
-                 </div>
-                 <button onClick={handleSave} className="w-full py-3 bg-secondary text-white rounded font-bold mt-4">Save Defaults</button>
+            <SettingsHeader title="Backup & Restore" onBack={onBack} showAdd={false} />
+            <div className="p-6 space-y-6">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
+                    <strong>Cloud Sync Active:</strong> Your data is automatically backed up to Google Cloud. These tools allow you to save a local copy of your data or transfer it to another account.
+                </div>
+
+                <div className="bg-white p-6 rounded-xl border shadow-sm">
+                    <h3 className="font-bold text-lg mb-2">Export Data</h3>
+                    <p className="text-slate-500 text-sm mb-4">Download a JSON file containing all your clients, estimates, settings, and templates.</p>
+                    <button onClick={handleExport} disabled={loading} className="w-full py-3 bg-white border-2 border-slate-200 hover:border-secondary hover:text-secondary rounded-lg font-bold flex items-center justify-center gap-2">
+                        <Icon name="download" className="w-5 h-5" />
+                        {loading ? 'Exporting...' : 'Download Backup'}
+                    </button>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl border shadow-sm">
+                    <h3 className="font-bold text-lg mb-2">Import Data</h3>
+                    <p className="text-slate-500 text-sm mb-4">Restore data from a previously exported JSON file. <span className="text-red-500 font-bold">This will overwrite current data.</span></p>
+                    <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+                    <button onClick={() => fileInputRef.current?.click()} disabled={loading} className="w-full py-3 bg-secondary text-white rounded-lg font-bold flex items-center justify-center gap-2">
+                        <Icon name="upload" className="w-5 h-5" />
+                        {loading ? 'Importing...' : 'Select Backup File'}
+                    </button>
+                </div>
             </div>
         </div>
     );

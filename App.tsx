@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Project, Room, Client, ItemTemplate, MaterialLine, ProjectSettings, BrandingSettings, Service, AreaName } from './types';
+import { Project, Room, Client, ItemTemplate, MaterialLine, ProjectSettings, BrandingSettings, Service, AreaName, UserProfile } from './types';
 import { calculateProjectTotals } from './services/calculationEngine';
-import { db } from './services/db';
+import { db, authService } from './services/db';
 import { BottomNav } from './components/Shared';
+import { LoginScreen, PaywallScreen } from './features/Auth';
 
 // Feature Components
 import { ClientList, ClientDetail } from './features/Clients';
@@ -11,6 +12,11 @@ import { RoomEditor } from './features/Rooms';
 import { SettingsMenu, TemplatesEditor, MaterialsEditor, LaborSettings, AreaNamesEditor, BrandingEditor, DataManagement, BackupRestore } from './features/Settings';
 
 const App = () => {
+  const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // App State
   const [view, setView] = useState<'projects' | 'clients' | 'settings'>('projects');
   const [subView, setSubView] = useState<string | null>(null);
   
@@ -28,50 +34,64 @@ const App = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
-  const refresh = async () => {
-    const [p, c, t, m, s, r, b, svcs, cats] = await Promise.all([
-      db.projects.toArray(),
-      db.clients.toArray(),
-      db.templates.toArray(),
-      db.materials.toArray(),
-      db.settings.get(),
-      db.roomNames.toArray(),
-      db.branding.get(),
-      db.services.toArray(),
-      db.categories.toArray()
-    ]);
-    setProjects(p.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    setClients(c.sort((a, b) => a.name.localeCompare(b.name)));
-    setTemplates(t);
-    setMaterials(m);
-    setSettings(s);
-
-    // Migration logic for legacy text-based room names
-    // We must check if migration is needed, perform it, AND SAVE IT immediately
-    // otherwise IDs will regenerate on every reload, breaking deletion.
-    let loadedRoomNames = r as any[];
-    if (loadedRoomNames.length > 0 && typeof loadedRoomNames[0] === 'string') {
-        const migratedNames = loadedRoomNames.map(name => ({
-            id: `area_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
-            name: name,
-            serviceId: 'svc_interior' // Default fallback
-        }));
-        
-        // SAVE the migrated data so IDs persist
-        await db.roomNames.setAll(migratedNames); 
-        setRoomNames(migratedNames);
-    } else {
-        setRoomNames(loadedRoomNames as AreaName[]);
-    }
-
-    setBranding(b);
-    setServices(svcs);
-    setCategories(cats);
-  };
-
   useEffect(() => {
-    refresh();
+    // Auth Listener
+    const unsubscribe = authService.onUserChange(async (u) => {
+        setUser(u);
+        if (u) {
+            setLoading(true);
+            try {
+                // Check Subscription First
+                const profile = await db.profile.get();
+                setUserProfile(profile);
+
+                if (profile.subscriptionStatus === 'active') {
+                    // Try to migrate legacy data if first time login
+                    await db.migrate(u);
+                    await refresh();
+                }
+            } catch (e) {
+                console.error("Migration/Load Error", e);
+            } finally {
+                // Always stop loading to avoid white screen
+                setLoading(false);
+            }
+        } else {
+            setUserProfile(null);
+            setLoading(false);
+        }
+    });
+    return () => unsubscribe();
   }, []);
+
+  const refresh = async () => {
+    if (!authService.getCurrentUser()) return;
+
+    try {
+        const [p, c, t, m, s, r, b, svcs, cats] = await Promise.all([
+          db.projects.toArray(),
+          db.clients.toArray(),
+          db.templates.toArray(),
+          db.materials.toArray(),
+          db.settings.get(),
+          db.roomNames.toArray(),
+          db.branding.get(),
+          db.services.toArray(),
+          db.categories.toArray()
+        ]);
+        setProjects(p.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setClients(c.sort((a, b) => a.name.localeCompare(b.name)));
+        setTemplates(t);
+        setMaterials(m);
+        setSettings(s);
+        setRoomNames(r);
+        setBranding(b);
+        setServices(svcs);
+        setCategories(cats);
+    } catch (err) {
+        console.error("Failed to refresh app data", err);
+    }
+  };
 
   const handleCreateProject = async (clientId: string) => {
       if (!settings) return;
@@ -109,7 +129,6 @@ const App = () => {
   const handleUpdateClient = async (c: Client) => {
       await db.clients.put(c);
       
-      // Sync address/name to all client's estimates
       const linkedProjects = projects.filter(p => p.clientId === c.id);
       if (linkedProjects.length > 0) {
           for (const p of linkedProjects) {
@@ -139,7 +158,25 @@ const App = () => {
       setSelectedRoom(null);
   };
 
-  if (!settings || !branding) return <div className="flex h-screen items-center justify-center text-slate-400">Loading ProPaint...</div>;
+  if (loading) {
+      return (
+          <div className="flex flex-col h-screen items-center justify-center bg-slate-900 text-white font-bold p-6 text-center">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <div className="text-xl tracking-tight">ProPaint</div>
+              <div className="text-slate-500 text-sm mt-2 font-normal italic">Optimizing for tablet...</div>
+          </div>
+      );
+  }
+
+  if (!user) {
+      return <LoginScreen />;
+  }
+
+  if (!userProfile || userProfile.subscriptionStatus !== 'active') {
+      return <PaywallScreen />;
+  }
+
+  if (!settings || !branding) return <div className="flex h-screen items-center justify-center text-slate-400">Loading Data...</div>;
 
   if (selectedRoom && selectedProject) {
       return (
