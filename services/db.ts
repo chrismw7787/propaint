@@ -1,20 +1,37 @@
 
 import { initializeApp } from 'firebase/app';
+// Consolidating firestore imports to improve module resolution
 import { 
-    getFirestore, collection, doc, getDoc, setDoc, deleteDoc, getDocs, 
-    query, writeBatch, initializeFirestore, persistentLocalCache 
+    getFirestore, 
+    collection, 
+    doc, 
+    getDoc, 
+    setDoc, 
+    deleteDoc, 
+    getDocs, 
+    writeBatch, 
+    initializeFirestore, 
+    persistentLocalCache 
 } from 'firebase/firestore';
 import { 
-    getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User 
+    getAuth, 
+    signInWithRedirect, 
+    GoogleAuthProvider, 
+    signOut, 
+    onAuthStateChanged 
 } from 'firebase/auth';
+// Fix: User must be imported as a type in the modular SDK to avoid "no exported member" errors
+import type { User } from 'firebase/auth';
 import { 
-    getStorage, ref, uploadBytes, getDownloadURL 
+    getStorage, 
+    ref, 
+    uploadBytes, 
+    getDownloadURL 
 } from 'firebase/storage';
 import Dexie, { Table } from 'dexie';
 import { Project, Client, ItemTemplate, MaterialLine, ProjectSettings, BrandingSettings, Service, AreaName, UserProfile } from '../types';
 import { DEFAULT_ITEM_TEMPLATES, DEFAULT_MATERIALS, DEFAULT_SETTINGS, DEFAULT_ROOM_NAMES, DEFAULT_SERVICES, DEFAULT_CATEGORIES, ADMIN_EMAILS } from '../constants';
 
-// --- Firebase Configuration ---
 const firebaseConfig = {
   apiKey: "AIzaSyByf04BuLsJmaSdjYhe4AR_QEPbmjXkscY",
   authDomain: "paint-estimator-pro-3848d.firebaseapp.com",
@@ -24,9 +41,10 @@ const firebaseConfig = {
   appId: "1:574969854880:web:8bd23b4d07002330a182c5"
 };
 
+// Fix: Standard initialization using modular firebase/app
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with Offline Persistence enabled
+// Fix: Enable offline persistence using modular initializeFirestore and persistentLocalCache
 const firestore = initializeFirestore(app, {
   localCache: persistentLocalCache()
 });
@@ -34,11 +52,11 @@ const firestore = initializeFirestore(app, {
 const auth = getAuth(app);
 const storage = getStorage(app);
 
-// --- Auth Exports ---
 export const authService = {
     login: async () => {
         const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
+        // Redirect is significantly more reliable on tablets and mobile devices
+        await signInWithRedirect(auth, provider);
     },
     logout: async () => {
         await signOut(auth);
@@ -49,7 +67,6 @@ export const authService = {
     getCurrentUser: () => auth.currentUser
 };
 
-// --- Storage Exports ---
 export const storageService = {
     uploadImage: async (blob: Blob, path: string): Promise<string> => {
         const user = auth.currentUser;
@@ -61,7 +78,6 @@ export const storageService = {
     }
 };
 
-// --- Legacy Dexie DB (For Migration Only) ---
 class LegacyProPaintDB extends Dexie {
     projects!: Table<Project>;
     clients!: Table<Client>;
@@ -88,54 +104,37 @@ class LegacyProPaintDB extends Dexie {
 }
 const legacyDb = new LegacyProPaintDB();
 
-// --- Migration Helper ---
 const migrateLegacyData = async (user: User) => {
-    // Check if we've already migrated this specific user
     const userSettingsRef = doc(firestore, 'users', user.uid, 'settings', 'global');
     const userSettingsSnap = await getDoc(userSettingsRef);
-    
-    // If user has data in cloud, assume migration done or not needed
     if (userSettingsSnap.exists()) return;
 
-    // Check if there is local data to migrate
     const projectCount = await legacyDb.projects.count();
-    if (projectCount === 0) return; // Nothing to migrate
+    if (projectCount === 0) return;
 
-    console.log("Migrating legacy data to Firebase...");
     const batch = writeBatch(firestore);
-
     const projects = await legacyDb.projects.toArray();
     projects.forEach(p => batch.set(doc(firestore, 'users', user.uid, 'projects', p.id), p));
-
     const clients = await legacyDb.clients.toArray();
     clients.forEach(c => batch.set(doc(firestore, 'users', user.uid, 'clients', c.id), c));
-
     const templates = await legacyDb.templates.toArray();
     templates.forEach(t => batch.set(doc(firestore, 'users', user.uid, 'templates', t.id), t));
-
     const materials = await legacyDb.materials.toArray();
     materials.forEach(m => batch.set(doc(firestore, 'users', user.uid, 'materials', m.id), m));
-    
     const services = await legacyDb.services.toArray();
     services.forEach(s => batch.set(doc(firestore, 'users', user.uid, 'services', s.id), s));
-    
     const roomNames = await legacyDb.roomNames.toArray();
     roomNames.forEach(r => batch.set(doc(firestore, 'users', user.uid, 'roomNames', r.id), r));
-    
     const categories = await legacyDb.categories.toArray();
     categories.forEach(c => batch.set(doc(firestore, 'users', user.uid, 'categories', c.value), c));
 
     const settings = await legacyDb.keyValueStore.get('settings');
     if (settings) batch.set(doc(firestore, 'users', user.uid, 'settings', 'global'), { value: settings.value });
-
     const branding = await legacyDb.keyValueStore.get('branding');
     if (branding) batch.set(doc(firestore, 'users', user.uid, 'settings', 'branding'), { value: branding.value });
 
     await batch.commit();
-    console.log("Migration complete.");
 };
-
-// --- Database Wrapper (API Match) ---
 
 const getCollectionRef = (collectionName: string) => {
     const user = auth.currentUser;
@@ -150,7 +149,6 @@ const createCollectionStore = <T extends { id: string }>(collectionName: string,
             const snapshot = await getDocs(getCollectionRef(collectionName));
             const items = snapshot.docs.map(d => d.data() as T);
             
-            // Seed defaults if empty and defaults provided (only check once per session technically, but cheap enough here)
             if (items.length === 0 && defaults) {
                  const batch = writeBatch(firestore);
                  defaults.forEach(item => {
@@ -170,11 +168,8 @@ const createCollectionStore = <T extends { id: string }>(collectionName: string,
             if (!auth.currentUser) return;
             await deleteDoc(doc(getCollectionRef(collectionName), id));
         },
-        // Used for bulk updates/resets
         setAll: async (items: T[]): Promise<void> => {
             if (!auth.currentUser) return;
-            // Note: In Firestore, 'setAll' usually implies deleting everything first, which is expensive.
-            // For now, we'll just upsert. If we need to clear, we'd need to delete all docs.
             const batch = writeBatch(firestore);
             items.forEach(item => {
                  batch.set(doc(getCollectionRef(collectionName), item.id), item);
@@ -213,16 +208,12 @@ const createValueStore = (collectionName: string, defaultValueIfEmpty?: string[]
 };
 
 export const db = {
-    // Expose migration tool for App.tsx
     migrate: migrateLegacyData,
-
-    // Profile Management for Subscription Check
     profile: {
         get: async (): Promise<UserProfile> => {
             const user = auth.currentUser;
             if (!user) throw new Error("Not logged in");
             
-            // Check Admin/Dev list first (Hardcoded Override)
             if (user.email && ADMIN_EMAILS.includes(user.email)) {
                 return { email: user.email, subscriptionStatus: 'active' };
             }
@@ -233,7 +224,6 @@ export const db = {
             if (snap.exists()) {
                 return snap.data() as UserProfile;
             } else {
-                // Initial Default Profile: Inactive
                 const newProfile: UserProfile = { 
                     email: user.email || '', 
                     subscriptionStatus: 'inactive' 
@@ -250,7 +240,6 @@ export const db = {
     materials: createCollectionStore<MaterialLine>('materials', DEFAULT_MATERIALS),
     services: createCollectionStore<Service>('services', DEFAULT_SERVICES),
     roomNames: createCollectionStore<AreaName>('roomNames', DEFAULT_ROOM_NAMES),
-    
     categories: createValueStore('categories', DEFAULT_CATEGORIES),
 
     settings: {
@@ -299,7 +288,6 @@ export const db = {
         import: async (jsonString: string): Promise<void> => {
              if (!auth.currentUser) return;
             const data = JSON.parse(jsonString);
-            // This is a heavy operation. We overwrite.
             if (data.projects) await Promise.all(data.projects.map((p:any) => db.projects.put(p)));
             if (data.clients) await Promise.all(data.clients.map((c:any) => db.clients.put(c)));
             if (data.templates) await Promise.all(data.templates.map((t:any) => db.templates.put(t)));
